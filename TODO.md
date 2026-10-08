@@ -10,7 +10,6 @@
 
 - [x] 🔵 Add `.gitignore` (secrets, captures, models, VM disks; `docs/11-architecture-diagram.md` kept local)
 - [x] 🔵 Create the folder skeleton: `pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/ tests/ infra/` (one `README.md` each)
-- [x] 🔵 Start a weekly log `docs/journal.md` (decisions, problems, measurements)
 - [x] 🔵 Write a **rules of engagement** document (`RULES-OF-ENGAGEMENT.md`) — 👥 both still need to sign §8
 
 ## 1. Scoping & state of the art — 12 → 26 Oct
