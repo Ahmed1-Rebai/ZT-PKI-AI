@@ -28,13 +28,13 @@
 - [x] 🔵 **IaC scaffolded (Vagrant + Ansible)** in `infra/`: `Vagrantfile` (11 VMs + 5 internal networks), `ansible/` (inventory, `site.yml`, `group_vars`, 12 roles — `common` implemented, rest milestone-stubbed), `Makefile`, `infra/README.md`
   - Networks are declared in the `Vagrantfile` as VirtualBox Internal Networks; `zt-gw` gets 5 NICs, others one per zone
   - Vagrant's NAT (eth0) gives Internet during provisioning; `make isolate` detaches it before attack tests, `make reconnect` restores it
-- [ ] 🔵 **Install the tools:** `cd infra && make tools` (installs Vagrant + Ansible, needs sudo + Internet)
-- [ ] 🔵 **Bring up VMs:** `make core` → `make detection` → `make workloads` → `make client` (or `make up`). Base boxes `bento/debian-12`, `bento/ubuntu-22.04` download on first run
+- [x] 🔵 **Tools installed:** Vagrant 2.x + Ansible (via `make tools`); KVM unloaded so VirtualBox gets AMD-V; `10.10.99.0/24` whitelisted in `/etc/vbox/networks.conf`
+- [x] 🔵 **All 10 VMs up and provisioned** (`failed=0` each): root-ca, sub-ca, zt-gw, zt-pdp, zt-sensor, siem, web-proxy, web-app, db, client-lin (AI is on the host, not a VM)
 - [x] 🔵 Common hardening automated in `roles/common` (SSH keys only, chrony/NTP, auditd, sysctl) ([docs/03 §6](docs/03-environnement-lab.md))
-- [ ] 🔵 Traffic mirror to the sensor: VirtualBox has no port mirroring → use `tc mirred` on `zt-gw` ([docs/08 §3](docs/08-supervision-siem.md)) or promiscuous mode "Allow All" on the sensor NIC
-- [ ] 👥 Connect the Red Team laptop **only** to the untrust network: `zt-gw` WAN NIC as a **Bridged Adapter** on a dedicated Ethernet port / USB-Ethernet cabled directly to the partner's laptop (no Internet on that link); verify no route to internal zones
-- [ ] 🔵 Isolation checks: `ping 10.10.30.10` from Kali fails, NTP offset < 1 s
-- [ ] 🔵 Snapshot `base` (`VBoxManage snapshot <vm> take base`)
+- [x] 🔵 Traffic-mirror script ready `sensor/mirror.sh` (tc mirred on zt-gw) — mirror NIC added + exercised at M4
+- [ ] 👥 Connect the Red Team laptop **only** to the untrust network (needs partner + hardware): `zt-gw` WAN NIC as a **Bridged Adapter** on a dedicated Ethernet / USB-Ethernet cabled to the partner's laptop; verify no route to internal zones — **BLOCKED on partner**
+- [x] 🔵 Isolation checks: client-lin (untrust) → data zone `10.10.30.10` **unreachable** ✓, → gateway reachable ✓; NTP offset < 1 s (chrony synced, 0.0008 s) ✓
+- [x] 🔵 Snapshots saved: `base` (all 10 VMs) + earlier `pki-base` (core 3)
 
 ## 3. PKI — 2 → 12 Nov · milestone M1 `[MVP]`
 
