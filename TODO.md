@@ -38,12 +38,13 @@
 
 ## 3. PKI — 2 → 12 Nov · milestone M1 `[MVP]`
 
-- [ ] 🔵 Root CA offline (ECDSA P-384, encrypted key, no NIC) — `pki/root/root.cnf`
-- [ ] 🔵 Issuing CA signed by Root (CSR transferred by USB), build `ca-chain.crt`
-- [ ] 🔵 Leaf profiles: server (gw, pdp, proxy, ai), client user (7 d), machine (30 d), OCSP signer
-- [ ] 🔵 Scripts `issue-client.sh`, `revoke.sh`, `gencrl.sh`, `renew.sh` + `inventory.csv`
-- [ ] 🔵 CRL publication + OCSP responder on `10.10.99.5:2560`
-- [ ] 👥 PKI tests: valid chain, expired, revoked, wrong EKU ([docs/04 §9](docs/04-pki.md))
+- [x] 🔵 OpenSSL configs written: `pki/root/root.cnf` (P-384, pathlen:1), `pki/sub/sub.cnf` (leaf profiles: client / server / server+client / ocsp)
+- [x] 🔵 Lifecycle scripts: `init-root.sh`, `init-sub.sh`, `sign-sub.sh`, `issue-server.sh`, `issue-client.sh`, `revoke.sh`, `gencrl.sh` (+ `inventory.csv`) — **validated end-to-end on the host** (chain verify + revocation via CRL)
+- [x] 🔵 Runbook documented in [pki/README.md](pki/README.md); `ca_root`/`ca_sub` roles install OpenSSL
+- [ ] 🔵 **Run the CA ceremony on the VMs**: `init-root` on root-ca → `init-sub` on sub-ca → `sign-sub` on root-ca → copy chain back → issue gw/pdp/proxy server certs + first client cert
+- [ ] 🔵 CRL publication (HTTP on `10.10.99.5`) + OCSP responder on `10.10.99.5:2560`
+- [ ] 🔵 `renew.sh` (renew before expiry, J−2)
+- [ ] 👥 PKI tests: valid chain ✓, revoked ✓ (host-validated); still to do on VMs: expired, wrong EKU ([docs/04 §9](docs/04-pki.md))
 - [ ] 🔵 Snapshot `pki-ok`
 - [ ] 🔵 `[EXT]` step-ca + ACME (24 h certs) · keys in SoftHSM / TPM
 

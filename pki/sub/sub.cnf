@@ -1,0 +1,80 @@
+# Issuing CA (online) — ECDSA P-384, signs leaf certs, publishes CRL + OCSP.
+# Leaf keys are P-256. Roles are NOT in the cert (the PDP assigns roles).
+
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+dir               = ./pki/sub
+certs             = $dir/certs
+new_certs_dir     = $dir/newcerts
+database          = $dir/index.txt
+serial            = $dir/serial
+crlnumber         = $dir/crlnumber
+private_key       = $dir/private/sub.key
+certificate       = $dir/certs/sub.crt
+default_md        = sha256
+name_opt          = ca_default
+cert_opt          = ca_default
+default_days      = 365
+default_crl_days  = 1
+preserve          = no
+policy            = policy_loose
+unique_subject    = no
+copy_extensions   = copy
+crl_extensions    = crl_ext
+
+[ policy_loose ]
+countryName         = optional
+organizationName    = optional
+commonName          = supplied
+
+[ req ]
+default_bits        = 256
+distinguished_name  = dn
+string_mask         = utf8only
+default_md          = sha256
+prompt              = no
+
+[ dn ]
+C  = TN
+O  = ZT-Lab
+CN = ZT-Lab Issuing CA
+
+[ crl_ext ]
+authorityKeyIdentifier = keyid:always
+
+[ client_cert ]
+basicConstraints       = CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage               = critical, digitalSignature
+extendedKeyUsage       = clientAuth
+crlDistributionPoints  = URI:http://10.10.99.5/crl/sub.crl
+authorityInfoAccess    = OCSP;URI:http://10.10.99.5:2560
+
+[ server_cert ]
+basicConstraints       = CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage               = critical, digitalSignature, keyEncipherment
+extendedKeyUsage       = serverAuth
+crlDistributionPoints  = URI:http://10.10.99.5/crl/sub.crl
+authorityInfoAccess    = OCSP;URI:http://10.10.99.5:2560
+
+# server cert that also authenticates as a client (PDP, proxy, ai services -> mTLS)
+[ server_client_cert ]
+basicConstraints       = CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage               = critical, digitalSignature, keyEncipherment
+extendedKeyUsage       = serverAuth, clientAuth
+crlDistributionPoints  = URI:http://10.10.99.5/crl/sub.crl
+authorityInfoAccess    = OCSP;URI:http://10.10.99.5:2560
+
+[ ocsp_cert ]
+basicConstraints       = CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage               = critical, digitalSignature
+extendedKeyUsage       = critical, OCSPSigning

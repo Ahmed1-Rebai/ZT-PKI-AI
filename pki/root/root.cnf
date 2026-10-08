@@ -1,0 +1,53 @@
+# Root CA (offline) — ECDSA P-384, 10 years, pathlen:1
+# Usage: this CA signs ONLY the Issuing CA. Keep the key encrypted and the VM
+# powered off except when signing. See pki/README.md.
+
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+dir               = ./pki/root
+certs             = $dir/certs
+new_certs_dir     = $dir/newcerts
+database          = $dir/index.txt
+serial            = $dir/serial
+crlnumber         = $dir/crlnumber
+private_key       = $dir/private/root.key
+certificate       = $dir/certs/root.crt
+default_md        = sha384
+name_opt          = ca_default
+cert_opt          = ca_default
+default_days      = 1095
+preserve          = no
+policy            = policy_strict
+unique_subject    = no
+copy_extensions   = none
+
+[ policy_strict ]
+countryName         = match
+organizationName    = match
+commonName          = supplied
+
+[ req ]
+default_bits        = 384
+distinguished_name  = dn
+string_mask         = utf8only
+default_md          = sha384
+prompt              = no
+
+[ dn ]
+C  = TN
+O  = ZT-Lab
+CN = ZT-Lab Root CA
+
+[ v3_root_ca ]
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints       = critical, CA:true, pathlen:1
+keyUsage               = critical, keyCertSign, cRLSign
+
+[ v3_intermediate_ca ]
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints       = critical, CA:true, pathlen:0
+keyUsage               = critical, keyCertSign, cRLSign

@@ -1,11 +1,11 @@
 ---
-# Role: ca_sub
-# M1 · docs/04 §4.2-5 — Issuing CA: issue server/client certs, publish CRL (hourly), run OCSP responder on :2560.
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: ca_sub — ensure OpenSSL tooling is present for the CA ceremony.
+# The actual key generation / signing is run by hand via pki/scripts/*
+# (encrypted keys prompt for a passphrase — deliberately not automated).
+# See pki/README.md "Runbook (CA ceremony)".
 
-- name: ca_sub role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (ca_sub): M1 · docs/04 §4.2-5 — Issuing CA: issue server/client certs, publish CRL (hourly), run OCSP responder on :2560."
+- name: Install OpenSSL
+  ansible.builtin.apt:
+    name: [openssl]
+    state: present
+    update_cache: true
