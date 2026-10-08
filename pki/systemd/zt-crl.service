@@ -1,0 +1,8 @@
+[Unit]
+Description=ZT CRL HTTP publisher (serves http://10.10.99.5/crl/sub.crl)
+After=network.target
+[Service]
+ExecStart=/usr/bin/python3 -m http.server 80 --directory /home/vagrant/crlpub
+Restart=always
+[Install]
+WantedBy=multi-user.target

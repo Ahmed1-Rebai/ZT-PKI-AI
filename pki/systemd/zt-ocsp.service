@@ -1,0 +1,11 @@
+[Unit]
+Description=ZT Issuing CA OCSP responder
+After=network.target
+[Service]
+User=vagrant
+WorkingDirectory=/home/vagrant
+ExecStart=/usr/bin/openssl ocsp -port 2560 -index /home/vagrant/pki/sub/index.txt -CA /home/vagrant/pki/sub/certs/ca-chain.crt -rkey /home/vagrant/pki/sub/private/ocsp.key -rsigner /home/vagrant/pki/sub/certs/ocsp.crt -ignore_err
+Restart=always
+# NOTE: openssl's responder reads index.txt at startup only — restart after each revocation.
+[Install]
+WantedBy=multi-user.target

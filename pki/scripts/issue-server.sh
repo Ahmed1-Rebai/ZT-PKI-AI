@@ -9,6 +9,7 @@ set -euo pipefail
 BASE="${PKI_BASE:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$BASE"
 S=pki/sub
+PASS_IN="${PKI_PASS:+-passin env:PKI_PASS}"
 CN="${1:?CN required}"; SANS="${2:?SAN list required}"; EXT="${3:-server_cert}"; DAYS="${4:-365}"
 
 # Build the SAN string for -addext (DNS.* / IP.*). Accept "name" or "IP:addr".
@@ -20,6 +21,7 @@ done
 
 key="$S/private/${CN}.key"; csr="$S/csr/${CN}.csr"; crt="$S/certs/${CN}.crt"
 echo "[*] Key (P-256) for $CN..."
+rm -f "$key"                       # prior key is mode 0400; clear before re-issue
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out "$key"
 chmod 400 "$key"
 
@@ -28,7 +30,7 @@ openssl req -config "$S/sub.cnf" -new -key "$key" -subj "/C=TN/O=ZT-Lab/CN=${CN}
   -addext "subjectAltName=${san}" -out "$csr"
 
 echo "[*] Signing ($EXT, $DAYS days)..."
-openssl ca -config "$S/sub.cnf" -batch -extensions "$EXT" -days "$DAYS" \
+openssl ca -config "$S/sub.cnf" -batch $PASS_IN -extensions "$EXT" -days "$DAYS" \
   -notext -md sha256 -in "$csr" -out "$crt"
 
 openssl x509 -in "$crt" -noout -subject -ext subjectAltName,extendedKeyUsage

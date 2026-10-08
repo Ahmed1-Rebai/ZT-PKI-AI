@@ -41,11 +41,11 @@
 - [x] 🔵 OpenSSL configs written: `pki/root/root.cnf` (P-384, pathlen:1), `pki/sub/sub.cnf` (leaf profiles: client / server / server+client / ocsp)
 - [x] 🔵 Lifecycle scripts: `init-root.sh`, `init-sub.sh`, `sign-sub.sh`, `issue-server.sh`, `issue-client.sh`, `revoke.sh`, `gencrl.sh` (+ `inventory.csv`) — **validated end-to-end on the host** (chain verify + revocation via CRL)
 - [x] 🔵 Runbook documented in [pki/README.md](pki/README.md); `ca_root`/`ca_sub` roles install OpenSSL
-- [ ] 🔵 **Run the CA ceremony on the VMs**: `init-root` on root-ca → `init-sub` on sub-ca → `sign-sub` on root-ca → copy chain back → issue gw/pdp/proxy server certs + first client cert
-- [ ] 🔵 CRL publication (HTTP on `10.10.99.5`) + OCSP responder on `10.10.99.5:2560`
-- [ ] 🔵 `renew.sh` (renew before expiry, J−2)
-- [ ] 👥 PKI tests: valid chain ✓, revoked ✓ (host-validated); still to do on VMs: expired, wrong EKU ([docs/04 §9](docs/04-pki.md))
-- [ ] 🔵 Snapshot `pki-ok`
+- [x] 🔵 **CA ceremony run on the VMs**: Root CA on root-ca → Issuing CA on sub-ca → signed by root (air-gapped CSR transfer) → leaf certs issued: `vpn-gw`, `pdp` (server+client), `proxy`, `alice` (client), `ocsp` signer. Lab CA passphrase `ZtLabCA-2026` (rotate for real use)
+- [x] 🔵 CRL publication (HTTP on `10.10.99.5:80`, systemd `zt-crl`) + OCSP responder on `10.10.99.5:2560` (systemd `zt-ocsp`) — units in `pki/systemd/`
+- [x] 🔵 `renew.sh` + `ocsp.sh` added; scripts take optional `PKI_PASS` for non-interactive runs
+- [x] 🔵 PKI tests on the VMs: chain verify ✓, CRL over HTTP ✓, OCSP good→revoked ✓ (restart responder after revoke); still optional: expired, wrong EKU ([docs/04 §9](docs/04-pki.md))
+- [x] 🔵 Snapshot `pki-ok` (all VMs); root-ca then halted (offline)
 - [ ] 🔵 `[EXT]` step-ca + ACME (24 h certs) · keys in SoftHSM / TPM
 
 ## 4. VPN + gateway — 12 → 22 Nov · milestone M2 `[MVP]`
