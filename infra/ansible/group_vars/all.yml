@@ -1,0 +1,32 @@
+---
+# Lab-wide variables. Adjust here, not in roles.
+
+timezone: "Africa/Tunis"
+ntp_server: "10.10.99.1"          # zt-gw serves time; falls back to pool if unreachable
+
+# Networks
+net_untrust: "192.168.100.0/24"
+net_dmz:     "10.10.10.0/24"
+net_app:     "10.10.20.0/24"
+net_data:    "10.10.30.0/24"
+net_mgmt:    "10.10.99.0/24"
+vpn_pool:    "10.8.0.0/24"
+
+# Key hosts
+gw_mgmt_ip:   "10.10.99.1"
+pdp_ip:       "10.10.99.10"
+subca_ip:     "10.10.99.5"
+sensor_ip:    "10.10.99.12"
+ai_ip:        "10.10.99.2"       # the HOST on the mgmt host-only net (GPU AI node)
+siem_ip:      "10.10.99.20"
+proxy_ip:     "10.10.10.10"
+app_ip:       "10.10.20.10"
+db_ip:        "10.10.30.10"
+
+# Software versions (pin where it matters)
+opa_version:    "0.70.0"
+suricata_apt:   true              # install from distro repo
+docker_compose: v2
+
+# SSH hardening
+ssh_password_auth: false

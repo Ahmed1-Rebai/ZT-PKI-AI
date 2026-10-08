@@ -1,0 +1,15 @@
+# tests/
+
+Attack scenarios, benign traffic generation, orchestration and evidence (see [docs/09](../docs/09-tests-et-scenarios.md)).
+
+```
+tests/
+├── scenarios/      # one test sheet (.md) + one script (.sh) per scenario S1-S17
+├── evidence/       # screenshots, logs, pcaps attached as proof (per scenario)
+├── traffic_benign.py
+├── run_all.py      # orchestrates, timestamps, collects results
+├── analyze.ipynb   # computes TTD/TTQ/metrics, generates figures
+└── reports/        # CSV + figures (reused in the report)
+```
+
+**Rule:** every claimed result must have a proof file in `evidence/`. All attacks run **only** inside the isolated lab — see [RULES-OF-ENGAGEMENT.md](../RULES-OF-ENGAGEMENT.md).

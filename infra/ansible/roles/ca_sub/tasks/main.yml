@@ -1,0 +1,11 @@
+---
+# Role: ca_sub
+# M1 · docs/04 §4.2-5 — Issuing CA: issue server/client certs, publish CRL (hourly), run OCSP responder on :2560.
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: ca_sub role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (ca_sub): M1 · docs/04 §4.2-5 — Issuing CA: issue server/client certs, publish CRL (hourly), run OCSP responder on :2560."

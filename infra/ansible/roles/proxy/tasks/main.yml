@@ -1,0 +1,11 @@
+---
+# Role: proxy
+# M6 · docs/06 §7 — Nginx mTLS reverse proxy (DMZ), client-cert required, CRL, forward CN to app.
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: proxy role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (proxy): M6 · docs/06 §7 — Nginx mTLS reverse proxy (DMZ), client-cert required, CRL, forward CN to app."

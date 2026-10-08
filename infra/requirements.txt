@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+redis
+httpx
+pydantic
+pyyaml
+pandas
+numpy
+scikit-learn
+torch
+nfstream
+shap
+joblib
+matplotlib
+pytest

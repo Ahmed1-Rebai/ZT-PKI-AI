@@ -1,0 +1,90 @@
+# -*- mode: ruby -*-
+# ZT-PKI-AI lab — VirtualBox + Vagrant + Ansible
+#
+# Networks (VirtualBox Internal Networks, no host/Internet route):
+#   zt-untrust 192.168.100.0/24 | zt-dmz 10.10.10.0/24 | zt-app 10.10.20.0/24
+#   zt-data 10.10.30.0/24       | zt-mgmt 10.10.99.0/24
+#
+# NOTE: eth0 is Vagrant's NAT, used ONLY to download the box and run apt during
+# provisioning. For isolation during attack tests, detach it afterwards:
+#   VBoxManage modifyvm <vm> --nic1 null     (or `vagrant halt` and toggle in GUI)
+#
+# Bring up a subset per milestone, e.g.:
+#   vagrant up sub-ca zt-gw zt-pdp            # M2/M3 core
+#   vagrant up zt-sensor zt-ai siem           # M4/M6 detection
+#
+# Each VM gets its role played by Ansible (see ansible/site.yml).
+
+BOX_DEB = "bento/debian-12"
+BOX_UBU = "bento/ubuntu-22.04"
+
+# name => options. nets: [[intnet, ip], ...]. ans: ansible playbook tag (host in inventory).
+NODES = {
+  # Offline Root CA: no internal NIC. Provision over NAT, then detach NIC and keep halted.
+  "root-ca"   => { box: BOX_DEB, cpus: 1, mem: 512,  nets: [],                              group: "ca_root" },
+  "sub-ca"    => { box: BOX_DEB, cpus: 1, mem: 1024, nets: [["zt-mgmt","10.10.99.5"]],      group: "ca_sub" },
+  "zt-gw"     => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-untrust","192.168.100.1"],
+                                                            ["zt-dmz","10.10.10.1"],
+                                                            ["zt-app","10.10.20.1"],
+                                                            ["zt-data","10.10.30.1"],
+                                                            ["zt-mgmt","10.10.99.1"]],      group: "gateway" },
+  "zt-pdp"    => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-mgmt","10.10.99.10"]],     group: "pdp" },
+  "zt-sensor" => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-mgmt","10.10.99.12"]],     group: "sensor" },
+  # NOTE: no zt-ai VM. The AI engine runs on the HOST to use the RTX 5050 GPU
+  # (VirtualBox has no CUDA passthrough). The host sits on the mgmt network at
+  # 10.10.99.2 — see README "AI on the host".
+  "siem"      => { box: BOX_UBU, cpus: 4, mem: 6144, nets: [["zt-mgmt","10.10.99.20"]],     group: "siem" },
+  "web-proxy" => { box: BOX_DEB, cpus: 1, mem: 1024, nets: [["zt-dmz","10.10.10.10"]],      group: "proxy" },
+  "web-app"   => { box: BOX_DEB, cpus: 1, mem: 1024, nets: [["zt-app","10.10.20.10"]],      group: "webapp" },
+  "db"        => { box: BOX_DEB, cpus: 1, mem: 1024, nets: [["zt-data","10.10.30.10"]],     group: "db" },
+  "client-lin"=> { box: BOX_UBU, cpus: 2, mem: 2048, nets: [["zt-untrust","192.168.100.11"]], group: "client" },
+}
+
+Vagrant.configure("2") do |config|
+  config.vm.boot_timeout = 600
+
+  # Headless lab: we don't need the /vagrant shared folder (Ansible runs over
+  # SSH), and we don't want vagrant-vbguest rebuilding Guest Additions — missing
+  # kernel headers trigger a reboot loop that breaks provisioning.
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  if Vagrant.has_plugin?("vagrant-vbguest")
+    config.vbguest.auto_update = false
+  end
+
+  NODES.each do |name, o|
+    config.vm.define name do |node|
+      node.vm.box      = o[:box]
+      node.vm.hostname = name
+
+      o[:nets].each do |intnet, ip|
+        if intnet == "zt-mgmt"
+          # Host-only (not internal): the HOST joins this network as the AI node
+          # (10.10.99.2) so it can reach the PDP (:8443) and the sensor. Still no
+          # Internet route. Set the host adapter IP once with `make mgmt-host`.
+          node.vm.network "private_network", ip: ip
+        else
+          # Internal network: fully isolated, VM-to-VM only.
+          node.vm.network "private_network", ip: ip, virtualbox__intnet: intnet
+        end
+      end
+
+      node.vm.provider "virtualbox" do |vb|
+        vb.name   = name
+        vb.cpus   = o[:cpus]
+        vb.memory = o[:mem]
+        vb.customize ["modifyvm", :id, "--groups", "/ZT-PKI-AI"]
+      end
+
+      # Let Vagrant generate the inventory (correct SSH creds over NAT) and just
+      # place this VM in its role group so site.yml's group plays match.
+      # (The static ansible/inventory.ini is kept only for running playbooks by
+      # hand later over the mgmt network.)
+      node.vm.provision "ansible" do |a|
+        a.playbook = "ansible/site.yml"
+        a.limit    = name
+        a.groups   = { o[:group] => [name] }
+        a.compatibility_mode = "2.0"
+      end
+    end
+  end
+end

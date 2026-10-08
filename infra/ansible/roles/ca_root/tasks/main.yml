@@ -1,0 +1,11 @@
+---
+# Role: ca_root
+# M1 · docs/04 §4.1 — Offline Root CA (ECDSA P-384). Generate key+self-signed cert, sign the Issuing CA by USB, then DETACH NIC and keep halted.
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: ca_root role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (ca_root): M1 · docs/04 §4.1 — Offline Root CA (ECDSA P-384). Generate key+self-signed cert, sign the Issuing CA by USB, then DETACH NIC and keep halted."

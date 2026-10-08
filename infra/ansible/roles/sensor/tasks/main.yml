@@ -1,0 +1,11 @@
+---
+# Role: sensor
+# M4/M6 · docs/08 §3 — Suricata 7 + NFStream. Receive mirrored traffic via tc mirred from zt-gw.
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: sensor role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (sensor): M4/M6 · docs/08 §3 — Suricata 7 + NFStream. Receive mirrored traffic via tc mirred from zt-gw."

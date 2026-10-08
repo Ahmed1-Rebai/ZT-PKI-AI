@@ -1,0 +1,11 @@
+---
+# Role: siem
+# M6 · docs/08 §4 — Wazuh all-in-one. Collect Suricata/OpenVPN/nftables/PDP/AI logs, correlation rules, dashboards.
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: siem role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (siem): M6 · docs/08 §4 — Wazuh all-in-one. Collect Suricata/OpenVPN/nftables/PDP/AI logs, correlation rules, dashboards."

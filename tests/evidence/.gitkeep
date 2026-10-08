@@ -1,0 +1,2 @@
+# Evidence files (screenshots, logs, pcaps) go here, one subfolder per scenario.
+# Large binary proofs (*.pcap) are git-ignored; keep small screenshots/log excerpts.

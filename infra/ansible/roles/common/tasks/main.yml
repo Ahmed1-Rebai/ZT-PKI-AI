@@ -1,0 +1,44 @@
+---
+# Baseline applied to every lab VM (docs/03 §6).
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+  ignore_errors: true
+
+- name: Install base packages
+  apt:
+    name:
+      - chrony
+      - curl
+      - git
+      - vim
+      - auditd
+      - ca-certificates
+      - python3
+    state: present
+    update_cache: true
+
+- name: Point chrony at the lab time source
+  copy:
+    dest: /etc/chrony/conf.d/zt.conf
+    content: "server {{ ntp_server }} iburst\n"
+  notify: restart chrony
+
+- name: Disable SSH password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+  when: not ssh_password_auth
+  notify: restart ssh
+
+- name: Harden sysctl (routing / spoofing)
+  copy:
+    dest: /etc/sysctl.d/90-zt.conf
+    content: |
+      net.ipv4.conf.all.rp_filter = 1
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.tcp_syncookies = 1
+  notify: reload sysctl

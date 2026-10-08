@@ -1,0 +1,11 @@
+---
+# Role: gateway
+# M2/M3 · docs/05 + docs/06 §6 — OpenVPN (TLS1.3 mTLS, tls-crypt), nftables deny-by-default forward chain with dynamic timeout sets, ZT hooks.
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: gateway role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (gateway): M2/M3 · docs/05 + docs/06 §6 — OpenVPN (TLS1.3 mTLS, tls-crypt), nftables deny-by-default forward chain with dynamic timeout sets, ZT hooks."

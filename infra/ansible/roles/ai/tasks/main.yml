@@ -1,0 +1,28 @@
+---
+# Role: ai  (runs on the HOST — RTX 5050 GPU)
+# M4/M5 · docs/07 — feature extraction, training (GPU), inference service that
+# POSTs risk scores to the PDP (https://10.10.99.10:8443/v1/events).
+#
+# This role targets localhost (see inventory [ai] + site.yml). It sets up a
+# Python venv on the host; training uses CUDA, inference is light.
+#
+# Fill in at M4. Skeleton keeps the playbook valid.
+
+- name: AI host prerequisites (venv tooling)
+  ansible.builtin.apt:
+    name: [python3-venv, python3-pip]
+    state: present
+  become: true
+
+- name: Create project venv on the host
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ playbook_dir }}/../../.venv
+    creates: "{{ playbook_dir }}/../../.venv"
+  become: false
+
+- name: TODO (ai)
+  ansible.builtin.debug:
+    msg: >-
+      M4/M5 · docs/07 — install ../requirements.txt into .venv, train on GPU
+      (torch CUDA), run ai/serve.py posting scores to the PDP. Verify GPU with
+      `nvidia-smi` on the host.

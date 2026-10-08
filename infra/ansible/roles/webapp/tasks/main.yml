@@ -1,0 +1,11 @@
+---
+# Role: webapp
+# M6 · docs/06 §7 — Demo Flask app/API on :8080.
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: webapp role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (webapp): M6 · docs/06 §7 — Demo Flask app/API on :8080."

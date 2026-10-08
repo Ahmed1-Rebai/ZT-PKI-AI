@@ -1,0 +1,67 @@
+---
+# Master playbook. Every host gets `common`; then its role.
+# Run via Vagrant (per-VM, automatic) or by hand:  ansible-playbook -i inventory.ini site.yml --limit zt-pdp
+
+- name: Baseline hardening on all hosts
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: Offline Root CA
+  hosts: ca_root
+  become: true
+  roles: [ca_root]
+
+- name: Issuing CA (CRL + OCSP)
+  hosts: ca_sub
+  become: true
+  roles: [ca_sub]
+
+- name: Zero Trust gateway (OpenVPN + nftables / PEP)
+  hosts: gateway
+  become: true
+  roles: [gateway]
+
+- name: Policy Decision Point (FastAPI + OPA + Redis)
+  hosts: pdp
+  become: true
+  roles: [pdp]
+
+- name: Network sensor (Suricata + NFStream)
+  hosts: sensor
+  become: true
+  roles: [sensor]
+
+# AI engine runs on the host to use the RTX 5050 GPU (no VirtualBox CUDA
+# passthrough). This play targets localhost; run it explicitly, not via Vagrant:
+#   ansible-playbook -i inventory.ini site.yml --limit ai -K
+- name: AI anomaly-detection engine (host, GPU)
+  hosts: ai
+  become: true
+  roles: [ai]
+
+- name: SIEM (Wazuh)
+  hosts: siem
+  become: true
+  roles: [siem]
+
+- name: Reverse proxy (Nginx mTLS)
+  hosts: proxy
+  become: true
+  roles: [proxy]
+
+- name: Web application / API
+  hosts: webapp
+  become: true
+  roles: [webapp]
+
+- name: Database (PostgreSQL)
+  hosts: db
+  become: true
+  roles: [db]
+
+- name: Legitimate client + posture agent
+  hosts: client
+  become: true
+  roles: [client]

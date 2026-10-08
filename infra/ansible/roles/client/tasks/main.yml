@@ -1,0 +1,11 @@
+---
+# Role: client
+# M2/M6 · docs/06 §8 — OpenVPN client + posture agent (reports every 60s over mTLS).
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: client role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (client): M2/M6 · docs/06 §8 — OpenVPN client + posture agent (reports every 60s over mTLS)."

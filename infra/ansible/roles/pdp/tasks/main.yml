@@ -1,0 +1,11 @@
+---
+# Role: pdp
+# M3 · docs/06 — Docker Compose: Redis + OPA + FastAPI PDP (mTLS). Rego policy, trust engine, enforce.py (nft + OpenVPN mgmt).
+#
+# This is a scaffold: it runs green (no-op) so the full playbook is valid.
+# Fill in the real tasks at the milestone noted above, pulling configs from the
+# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+
+- name: pdp role placeholder
+  ansible.builtin.debug:
+    msg: "TODO (pdp): M3 · docs/06 — Docker Compose: Redis + OPA + FastAPI PDP (mTLS). Rego policy, trust engine, enforce.py (nft + OpenVPN mgmt)."
