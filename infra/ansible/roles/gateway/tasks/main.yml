@@ -1,11 +1,149 @@
 ---
-# Role: gateway
-# M2/M3 · docs/05 + docs/06 §6 — OpenVPN (TLS1.3 mTLS, tls-crypt), nftables deny-by-default forward chain with dynamic timeout sets, ZT hooks.
+# Role: gateway — M2/M3 · docs/05 + docs/06 §6
+# OpenVPN (TLS1.3 mTLS, tls-crypt, crl-verify, no pushed routes) + nftables
+# deny-by-default forward chain with dynamic timeout sets + Zero Trust hooks.
 #
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Configs live in the repo (vpn/, firewall/) and are copied here; the PKI
+# material is staged by vpn/scripts/sync-pki.sh (never committed).
 
-- name: gateway role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (gateway): M2/M3 · docs/05 + docs/06 §6 — OpenVPN (TLS1.3 mTLS, tls-crypt), nftables deny-by-default forward chain with dynamic timeout sets, ZT hooks."
+- name: Install gateway packages
+  ansible.builtin.apt:
+    name:
+      - openvpn
+      - nftables
+      - openssl
+      - netcat-openbsd
+      - python3
+    state: present
+    update_cache: true
+
+- name: Create OpenVPN / nftables directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/openvpn/server
+    - /etc/openvpn/hooks
+    - /etc/openvpn/zt
+    - /etc/nftables.d
+    - /var/log/openvpn
+
+# --- PKI material (staged from sub-ca) -------------------------------------
+
+- name: Check staged PKI material exists (on the control node)
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/vpn/server/pki/{{ item }}"
+  delegate_to: localhost
+  become: false
+  register: zt_gw_pki
+  loop: [ca-chain.crt, vpn-gw.crt, vpn-gw.key, crl.pem]
+
+- name: Fail if PKI staging is incomplete
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing {{ item.item }} — run vpn/scripts/sync-pki.sh first."
+  loop: "{{ zt_gw_pki.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Deploy OpenVPN server config
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/server/server.conf"
+    dest: /etc/openvpn/server/server.conf
+    mode: "0644"
+  notify: restart openvpn
+
+- name: Deploy PKI material
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/server/pki/{{ item.src }}"
+    dest: "/etc/openvpn/server/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: ca-chain.crt, dest: ca-chain.crt, mode: "0644" }
+    - { src: vpn-gw.crt,   dest: vpn-gw.crt,   mode: "0644" }
+    - { src: vpn-gw.key,   dest: vpn-gw.key,   mode: "0600" }
+    - { src: crl.pem,      dest: crl.pem,      mode: "0644" }
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: restart openvpn
+
+- name: Generate the shared tls-crypt key (idempotent)
+  ansible.builtin.command:
+    cmd: openvpn --genkey secret /etc/openvpn/server/ta.key
+    creates: /etc/openvpn/server/ta.key
+  notify: restart openvpn
+
+# --- Zero Trust hooks ------------------------------------------------------
+
+- name: Deploy Zero Trust hooks
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/hooks/{{ item }}"
+    dest: "/etc/openvpn/hooks/{{ item }}"
+    mode: "0755"
+  loop: [zt_common.py, tls-verify.py, client-connect.py, client-disconnect.py]
+  notify: restart openvpn
+
+- name: Deploy hook configuration
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/hooks/hook.env.example"
+    dest: /etc/openvpn/zt/hook.env
+    mode: "0644"
+  notify: restart openvpn
+
+- name: Set PDP enforcement mode
+  ansible.builtin.lineinfile:
+    path: /etc/openvpn/zt/hook.env
+    regexp: '^PDP_ENFORCE='
+    line: "PDP_ENFORCE={{ vpn_pdp_enforce }}"
+  notify: restart openvpn
+
+- name: Deploy fixed VPN IP map
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/zt/ip-map.csv"
+    dest: /etc/openvpn/zt/ip-map.csv
+    mode: "0644"
+
+# --- Routing + firewall ----------------------------------------------------
+
+- name: Enable IP forwarding (gateway routes between zones)
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/91-zt-gw.conf
+    content: "net.ipv4.ip_forward = 1\n"
+    mode: "0644"
+  notify: reload sysctl
+
+- name: Deploy nftables main ruleset
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/firewall/nftables.conf"
+    dest: /etc/nftables.conf
+    mode: "0644"
+  notify: reload nftables
+
+- name: Deploy nftables host input chain
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/firewall/gw-input.nft"
+    dest: /etc/nftables.d/gw-input.nft
+    mode: "0644"
+  notify: reload nftables
+
+- name: Validate the nftables ruleset
+  ansible.builtin.command:
+    cmd: nft -c -f /etc/nftables.conf
+  changed_when: false
+
+# --- Services --------------------------------------------------------------
+
+- name: Enable and start nftables
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
+
+- name: Enable and start OpenVPN server
+  ansible.builtin.systemd:
+    name: openvpn-server@server
+    enabled: true
+    state: started

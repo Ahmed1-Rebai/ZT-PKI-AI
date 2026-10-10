@@ -1,11 +1,41 @@
 ---
-# Role: client
-# M2/M6 · docs/06 §8 — OpenVPN client + posture agent (reports every 60s over mTLS).
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: client — M2/M6 · docs/05 §4 + docs/06 §8
+# OpenVPN client on the untrusted zone. The self-contained profile is built by
+# vpn/scripts/make-client.sh (embedded CA chain, client cert/key, tls-crypt).
+# The posture agent (M6) is added later.
 
-- name: client role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (client): M2/M6 · docs/06 §8 — OpenVPN client + posture agent (reports every 60s over mTLS)."
+- name: Install OpenVPN client packages
+  ansible.builtin.apt:
+    name:
+      - openvpn
+      - openssl
+    state: present
+    update_cache: true
+
+- name: Create /etc/openvpn/client
+  ansible.builtin.file:
+    path: /etc/openvpn/client
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check the staged client profile exists (on the control node)
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/vpn/client/{{ vpn_client_user }}.ovpn"
+  delegate_to: localhost
+  become: false
+  register: zt_client_profile
+
+- name: Fail if the profile was not built
+  ansible.builtin.assert:
+    that: zt_client_profile.stat.exists
+    fail_msg: "Missing vpn/client/{{ vpn_client_user }}.ovpn — run vpn/scripts/make-client.sh {{ vpn_client_user }} first."
+
+- name: Install the client profile
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/client/{{ vpn_client_user }}.ovpn"
+    dest: "/etc/openvpn/client/{{ vpn_client_user }}.conf"
+    owner: root
+    group: root
+    mode: "0600"

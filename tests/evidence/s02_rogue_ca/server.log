@@ -1,0 +1,15 @@
+UDPv4 link remote: [AF_UNSPEC]
+UID set to nobody
+GID set to nogroup
+Capabilities retained: CAP_NET_ADMIN
+MULTI: multi_init called, r=256 v=256
+IFCONFIG POOL IPv4: base=10.8.0.2 size=253
+IFCONFIG POOL LIST
+Initialization Sequence Completed
+192.168.100.11:1194 VERIFY ERROR: depth=0, error=unable to get local issuer certificate: CN=eve@lab.local, serial=15676509442724582281675619146954136125371236419
+192.168.100.11:1194 Sent fatal SSL alert: unknown CA
+192.168.100.11:1194 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+192.168.100.11:1194 TLS_ERROR: BIO read tls_read_plaintext error
+192.168.100.11:1194 TLS Error: TLS object -> incoming plaintext read error
+192.168.100.11:1194 TLS Error: TLS handshake failed
+192.168.100.11:1194 SIGUSR1[soft,tls-error] received, client-instance restarting

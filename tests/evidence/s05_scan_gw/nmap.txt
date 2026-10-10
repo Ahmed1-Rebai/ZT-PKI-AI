@@ -1,0 +1,19 @@
+### TCP scan (1-1024)
+# Nmap 7.80 scan initiated Sat Oct 10 19:04:05 2026 as: nmap -sS -p 1-1024 -oN /tmp/s5s.txt 192.168.100.1
+Nmap scan report for 192.168.100.1
+Host is up (0.00040s latency).
+All 1024 scanned ports on 192.168.100.1 are filtered
+MAC Address: 08:00:27:8E:56:3B (Oracle VirtualBox virtual NIC)
+
+# Nmap done at Sat Oct 10 19:04:27 2026 -- 1 IP address (1 host up) scanned in 22.01 seconds
+
+### UDP scan (top-50)
+# Nmap 7.80 scan initiated Sat Oct 10 19:04:27 2026 as: nmap -sU --top-ports 50 -oN /tmp/s5u.txt 192.168.100.1
+Nmap scan report for 192.168.100.1
+Host is up (0.00043s latency).
+Not shown: 49 open|filtered ports
+PORT    STATE  SERVICE
+123/udp closed ntp
+MAC Address: 08:00:27:8E:56:3B (Oracle VirtualBox virtual NIC)
+
+# Nmap done at Sat Oct 10 19:04:30 2026 -- 1 IP address (1 host up) scanned in 2.14 seconds

@@ -1,0 +1,31 @@
+# ZT-PKI-AI — OpenVPN client profile template (docs/05 §4).
+# Rendered by `vpn/scripts/make-client.sh`; placeholders are filled with the
+# CA chain, the client cert/key and the shared tls-crypt key.
+# The generated *.ovpn is git-ignored (it embeds private material).
+client
+dev tun
+proto udp
+remote __GW_HOST__ 1194
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+verify-x509-name vpn-gw.lab.local name
+tls-version-min 1.3
+data-ciphers AES-256-GCM:CHACHA20-POLY1305
+data-ciphers-fallback AES-256-GCM
+auth-nocache
+verb 3
+
+<ca>
+__CA_CHAIN__
+</ca>
+<cert>
+__CLIENT_CERT__
+</cert>
+<key>
+__CLIENT_KEY__
+</key>
+<tls-crypt>
+__TLS_CRYPT__
+</tls-crypt>

@@ -1,0 +1,4 @@
+# Fixed VPN IP per identity (CN -> 10.8.0.0/24). One line per client.
+# Deployed to /etc/openvpn/zt/ip-map.csv. The PDP becomes the source of truth
+# at M3; this static map lets the gateway pin IPs during M2 bring-up.
+alice@lab.local,10.8.0.10

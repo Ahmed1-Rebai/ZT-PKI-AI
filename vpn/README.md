@@ -4,9 +4,69 @@ OpenVPN gateway configuration and Zero Trust hooks (see [docs/05](../docs/05-vpn
 
 ```
 vpn/
-├── server/         # server.conf
-├── hooks/          # tls-verify.py, client-connect.py, client-disconnect.py
-└── client/         # alice.ovpn template (without embedded keys)
+├── server/
+│   ├── server.conf       # OpenVPN server (TLS 1.3 mTLS, tls-crypt, crl-verify)
+│   └── pki/              # staged certs (git-ignored) — filled by scripts/sync-pki.sh
+├── hooks/
+│   ├── zt_common.py      # shared helpers (config, PDP client, logging)
+│   ├── tls-verify.py     # handshake gate: identity -> PDP decision (fail-closed)
+│   ├── client-connect.py # fixed VPN IP per CN + PDP session open
+│   ├── client-disconnect.py
+│   └── hook.env.example  # deployed to /etc/openvpn/zt/hook.env
+├── zt/
+│   └── ip-map.csv        # static CN -> VPN IP map (M2; PDP is source of truth at M3)
+├── client/
+│   ├── client.ovpn.template  # committed template (no embedded keys)
+│   └── pki/                  # staged client certs (git-ignored)
+└── scripts/
+    ├── sync-pki.sh       # fetch PKI material from sub-ca into the staging dirs
+    ├── make-client.sh    # render <user>.ovpn from staged material
+    ├── deploy.sh         # one-shot: sync + provision gateway + build client profile
+    └── verify.sh         # M2 checks (S1/S2/S3/S14 + services); `make vpn-check`
 ```
 
-> `*.ovpn` client profiles, `ta.key` and all private keys are **not committed**.
+> Generated `*.ovpn`, `ta.key` and all private keys are **not committed**.
+
+## Deploy (M2)
+
+From `infra/`:
+
+```bash
+make vpn          # sync PKI, provision zt-gw, build alice.ovpn, provision client-lin
+```
+
+Or by hand:
+
+```bash
+vpn/scripts/sync-pki.sh alice        # sub-ca -> vpn/{server,client}/pki/ (run from repo root)
+vagrant provision zt-gw              # installs OpenVPN + nftables, generates ta.key
+vpn/scripts/sync-pki.sh alice        # now also fetches ta.key
+vpn/scripts/make-client.sh alice     # -> vpn/client/alice.ovpn (deploy to client-lin)
+```
+
+## Fail-closed modes
+
+The hooks read `/etc/openvpn/zt/hook.env`:
+
+* `PDP_ENFORCE=0` — **M2 bootstrap**: OpenVPN enforces mTLS + CRL; the hooks only
+  log and pin IPs. Used while the PDP (M3) is not built yet.
+* `PDP_ENFORCE=1` — **M3+**: every decision comes from the PDP; if it is
+  unreachable the connection is denied (ENF4 / S14).
+
+## Operational notes
+
+* **CRL lifetime.** The Issuing CA CRL is valid 24 h. `crl-verify` refuses *every*
+  client once it expires (`CRL has expired`), so before a demo run
+  `pki/scripts/gencrl.sh` on `sub-ca` and re-publish it to the gateway
+  (re-run `make vpn`, or copy the new `crl.pem` to `/etc/openvpn/server/crl.pem`;
+  OpenVPN reloads it on change). Automated distribution is an M3 item.
+* `docker`/`vagrant` deployment assumes the host has VirtualBox with AMD-V free —
+  unload KVM first if it is loaded (`sudo modprobe -r kvm_amd kvm`).
+
+## Verify (M2)
+
+```bash
+make vpn-check                 # services + S1/S2 + fail-closed (safe)
+bash ../vpn/scripts/verify.sh --full   # also S3 (revoked) + S14
+tests/run-m2.sh                # run S1-S6, S13, S14 and write tests/evidence/
+```

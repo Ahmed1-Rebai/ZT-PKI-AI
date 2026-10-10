@@ -1,0 +1,16 @@
+---
+- name: restart openvpn
+  ansible.builtin.systemd:
+    name: openvpn-server@server
+    state: restarted
+    daemon_reload: true
+
+- name: reload nftables
+  ansible.builtin.systemd:
+    name: nftables
+    state: restarted
+
+- name: reload sysctl
+  ansible.builtin.command:
+    cmd: sysctl --system
+  changed_when: true

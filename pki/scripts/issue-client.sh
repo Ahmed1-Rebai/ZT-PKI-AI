@@ -19,9 +19,19 @@ chmod 400 "$key"
 
 openssl req -config "$S/sub.cnf" -new -key "$key" -subj "/C=TN/O=ZT-Lab/CN=${CN}" -out "$csr"
 
-echo "[*] Signing (clientAuth, $DAYS days)..."
-openssl ca -config "$S/sub.cnf" -batch $PASS_IN -extensions client_cert -days "$DAYS" \
-  -notext -md sha256 -in "$csr" -out "$crt"
+if [ "$DAYS" = 0 ]; then
+  # Already-expired cert for S4 (the validity control): a 2-day window that
+  # ended an hour ago. `openssl ca -days 0` is rejected as non-positive.
+  START=$(date -u -d '2 days ago' +%Y%m%d%H%M%SZ)
+  END=$(date -u -d '1 hour ago' +%Y%m%d%H%M%SZ)
+  echo "[*] Signing (clientAuth, already-expired test cert $START..$END)..."
+  openssl ca -config "$S/sub.cnf" -batch $PASS_IN -extensions client_cert \
+    -startdate "$START" -enddate "$END" -notext -md sha256 -in "$csr" -out "$crt"
+else
+  echo "[*] Signing (clientAuth, $DAYS days)..."
+  openssl ca -config "$S/sub.cnf" -batch $PASS_IN -extensions client_cert -days "$DAYS" \
+    -notext -md sha256 -in "$csr" -out "$crt"
+fi
 
 serial=$(openssl x509 -in "$crt" -noout -serial | cut -d= -f2)
 echo "${USER},${DEV},${serial},$(date -u +%FT%TZ)" >> "$S/inventory.csv"

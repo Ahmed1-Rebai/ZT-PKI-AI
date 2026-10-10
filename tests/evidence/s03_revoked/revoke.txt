@@ -1,0 +1,7 @@
+[*] Revoking pki/sub/certs/alice.crt (reason: keyCompromise)...
+[+] published -> /home/vagrant/crlpub/crl/sub.crl
+[+] CRL: pki/sub/crl/sub.pem
+lastUpdate=Oct 10 18:01:47 2026 GMT
+nextUpdate=Oct 11 18:01:47 2026 GMT
+[+] Revoked and CRL regenerated. Serial:
+serial=200E

@@ -1,0 +1,12 @@
+192.168.100.11:1194 TLS_ERROR: BIO read tls_read_plaintext error
+192.168.100.11:1194 TLS Error: TLS object -> incoming plaintext read error
+192.168.100.11:1194 TLS Error: TLS handshake failed
+192.168.100.11:1194 SIGUSR1[soft,tls-error] received, client-instance restarting
+192.168.100.11:43281 CRL: loaded 1 CRLs from file /etc/openvpn/server/crl.pem
+192.168.100.11:43281 VERIFY ERROR: depth=0, error=certificate revoked: C=TN, O=ZT-Lab, CN=alice@lab.local, serial=8206
+192.168.100.11:43281 Sent fatal SSL alert: certificate revoked
+192.168.100.11:43281 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+192.168.100.11:43281 TLS_ERROR: BIO read tls_read_plaintext error
+192.168.100.11:43281 TLS Error: TLS object -> incoming plaintext read error
+192.168.100.11:43281 TLS Error: TLS handshake failed
+192.168.100.11:43281 SIGUSR1[soft,tls-error] received, client-instance restarting

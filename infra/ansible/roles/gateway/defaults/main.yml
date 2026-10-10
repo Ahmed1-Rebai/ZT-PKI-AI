@@ -1,0 +1,4 @@
+---
+# Overridable in group_vars/all.yml.
+vpn_port: 1194
+vpn_pdp_enforce: "0"

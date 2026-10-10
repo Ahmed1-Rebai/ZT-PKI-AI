@@ -15,19 +15,20 @@
 
 ## Steps
 
-1. _(fill in during execution)_
+1. From `client-lin` scan the gateway: `nmap -sS -p 1-1024 192.168.100.1` (TCP) and a UDP top-ports scan (`tests/run-m2.sh s5`).
+2. Inspect which ports answer and which stay silent.
 
 ## Measurements
 
-- t0 (start): …
-- t_detect / t_quarantine (if applicable): …
+- t0 (start): 2026-10-10 19:04:05Z
+- t_detect / t_quarantine (if applicable): n/a (reconnaissance)
 - See `tests/evidence/s05_scan_gw/` for logs and screenshots.
 
 ## Result
 
 | | |
 |---|---|
-| **Actual result** | |
-| **Status** (OK / KO / partial) | |
-| **Proof** (logs, captures) | `tests/evidence/s05_scan_gw/` |
-| **Notes / improvements** | |
+| **Actual result** | All 1024 TCP ports `filtered`. On UDP, 49 ports are `open|filtered` (silent — including 1194) and only `123/udp` is `closed` (allowlisted NTP). The management socket `7505` is bound to loopback only. |
+| **Status** (OK / KO / partial) | OK |
+| **Proof** (logs, captures) | `tests/evidence/s05_scan_gw/nmap.txt` |
+| **Notes / improvements** | `tls-crypt` makes OpenVPN drop unauthenticated datagrams, so 1194 gives no reply; nftables input policy is `drop`. |

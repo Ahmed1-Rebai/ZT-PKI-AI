@@ -6,6 +6,7 @@ Attack scenarios, benign traffic generation, orchestration and evidence (see [do
 tests/
 ├── scenarios/      # one test sheet (.md) + one script (.sh) per scenario S1-S17
 ├── evidence/       # screenshots, logs, pcaps attached as proof (per scenario)
+├── run-m2.sh       # runs the M2 VPN/gateway scenarios (S1-S6, S13, S14) + collects evidence
 ├── traffic_benign.py
 ├── run_all.py      # orchestrates, timestamps, collects results
 ├── analyze.ipynb   # computes TTD/TTQ/metrics, generates figures

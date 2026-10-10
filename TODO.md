@@ -49,13 +49,13 @@
 
 ## 4. VPN + gateway — 12 → 22 Nov · milestone M2 `[MVP]`
 
-- [ ] 🔵 OpenVPN server: TLS 1.3, mTLS, `tls-crypt`, `crl-verify`, no pushed routes, management port
-- [ ] 🔵 Gateway firewall: nftables input chain (rate-limit 1194, SSH from mgmt only)
-- [ ] 🔵 Hooks `tls-verify.py`, `client-connect.py` (fixed VPN IP per CN), `client-disconnect.py` — **fail-closed**
-- [ ] 🔵 Client profile `alice.ovpn`
-- [ ] 🔴 Run **S1** (no cert), **S2** (rogue CA), **S3** (revoked), **S4** (expired), **S5** (scan), **S6** (UDP flood), **S13** (fake gateway)
-- [ ] 🔵 Run **S14** (PDP down → no access)
-- [ ] 🔵 Snapshot `vpn-ok`
+- [x] 🔵 OpenVPN server: TLS 1.3, mTLS, `tls-crypt`, `crl-verify`, no pushed routes, management port — `vpn/server/server.conf`
+- [x] 🔵 Gateway firewall: nftables input chain (rate-limit 1194, SSH from mgmt only) + deny-by-default forward chain — `firewall/{gw-input.nft,nftables.conf}`
+- [x] 🔵 Hooks `tls-verify.py`, `client-connect.py` (fixed VPN IP per CN), `client-disconnect.py` — **fail-closed** (`PDP_ENFORCE=1`); `0` = M2 bootstrap
+- [x] 🔵 Client profile `alice.ovpn` (built from staged PKI; embeds CA chain + cert/key + tls-crypt)
+- [x] 🔴 Run **S1** (no cert), **S2** (rogue CA), **S3** (revoked), **S4** (expired), **S5** (scan), **S6** (UDP flood), **S13** (fake gateway) — all OK, evidence in `tests/evidence/`
+- [x] 🔵 Run **S14** (PDP down → no access) — fail-closed denied, evidence in `tests/evidence/s14_pdp_down/`
+- [x] 🔵 Snapshot `vpn-ok` (sub-ca, zt-gw, client-lin)
 - [ ] 🔵 `[EXT]` WireGuard performance comparison
 
 ## 5. Zero Trust engine: PDP / PEP — 22 Nov → 6 Dec · milestone M3 `[MVP]`

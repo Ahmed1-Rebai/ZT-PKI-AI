@@ -1,0 +1,10 @@
+2026-10-10 19:05:17 net_iface_mtu_set: mtu 1500 for tun0
+2026-10-10 19:05:17 net_iface_up: set tun0 up
+2026-10-10 19:05:17 net_addr_v4_add: 10.9.0.1/24 dev tun0
+2026-10-10 19:05:17 Could not determine IPv4/IPv6 protocol. Using AF_INET
+2026-10-10 19:05:17 UDPv4 link local (bound): [AF_INET][undef]:1195
+2026-10-10 19:05:17 UDPv4 link remote: [AF_UNSPEC]
+2026-10-10 19:05:17 Initialization Sequence Completed
+2026-10-10 19:05:34 event_wait : Interrupted system call (code=4)
+2026-10-10 19:05:34 net_addr_v4_del: 10.9.0.1 dev tun0
+2026-10-10 19:05:34 SIGTERM[hard,] received, process exiting

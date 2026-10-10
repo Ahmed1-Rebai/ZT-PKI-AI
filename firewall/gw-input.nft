@@ -1,0 +1,42 @@
+#!/usr/sbin/nft -f
+# ZT-PKI-AI gateway host protection — input chain (docs/05 §7).
+# Deployed to /etc/nftables.d/gw-input.nft and included by /etc/nftables.conf.
+#
+# Matching is done on source/destination addresses rather than interface names
+# so the ruleset is stable regardless of how the 5 NICs are named on the VM.
+# The only ingress paths to the gateway are: OpenVPN (untrust), SSH (mgmt),
+# NTP (lab) and the loopback-only management socket.
+
+table inet zt_input {
+  chain input {
+    type filter hook input priority 0; policy drop;
+
+    iif lo accept
+    ct state established,related accept
+    ct state invalid drop
+
+    ip protocol icmp icmp type echo-request limit rate 5/second burst 10 packets accept
+
+    # OpenVPN: untrusted zone only, rate-limited. tls-crypt silently discards
+    # unauthenticated packets (S5); the rate limit bounds a UDP flood before
+    # OpenVPN processes it (S6).
+    ip saddr 192.168.100.0/24 udp dport 1194 limit rate 50/second burst 100 packets accept
+
+    # SSH administration from the management zone only.
+    ip saddr 10.10.99.0/24 tcp dport 22 accept
+
+    # Provisioning-only path (Vagrant NAT). Inert once NIC1 is detached for
+    # attack tests (`make isolate`): no interface, no traffic.
+    ip saddr 10.0.2.0/24 tcp dport 22 accept
+
+    # The gateway is the lab NTP source (chrony on 10.10.99.1).
+    ip saddr { 10.10.10.0/24, 10.10.20.0/24, 10.10.30.0/24, 10.10.99.0/24, 192.168.100.0/24 } \
+       udp dport 123 accept
+
+    # OpenVPN management interface: loopback only (docs/05 §6).
+    ip saddr 127.0.0.1 tcp dport 7505 accept
+
+    log prefix "GW-IN-DROP " level info limit rate 5/second
+    counter
+  }
+}

@@ -1,0 +1,3 @@
+---
+# Identity whose profile is installed (built by vpn/scripts/make-client.sh).
+vpn_client_user: alice

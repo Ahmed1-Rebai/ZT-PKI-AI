@@ -4,8 +4,19 @@ nftables rulesets for the gateway (see [docs/05 §7](../docs/05-vpn.md) and [doc
 
 ```
 firewall/
-├── nftables.conf       # base ruleset: deny-by-default forward chain + dynamic sets with timeout
+├── nftables.conf       # main ruleset: deny-by-default forward chain + dynamic sets; includes the input chain
 └── gw-input.nft        # gateway host protection (input chain)
 ```
 
-Dynamic set elements (`allow_web`, `allow_ssh`, `quarantine`) are managed at runtime by the PDP (`pdp/enforce.py`).
+Deployed by `infra/ansible/roles/gateway` as:
+
+| repo file | target on `zt-gw` |
+|---|---|
+| `nftables.conf` | `/etc/nftables.conf` |
+| `gw-input.nft`  | `/etc/nftables.d/gw-input.nft` (included by `/etc/nftables.conf`) |
+
+Dynamic set elements (`allow_web`, `allow_ssh`, `allow_remed`, `quarantine`) are
+populated at runtime by the PDP (`pdp/enforce.py`) with a timeout; at M2 the
+sets are empty so a connected client reaches nothing (deny-by-default).
+
+Test syntax before loading: `sudo nft -c -f firewall/nftables.conf` (from the repo root).

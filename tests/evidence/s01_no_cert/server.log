@@ -1,0 +1,15 @@
+TUN/TAP device tun0 opened
+net_iface_mtu_set: mtu 1500 for tun0
+net_iface_up: set tun0 up
+net_addr_v4_add: 10.8.0.1/24 dev tun0
+Could not determine IPv4/IPv6 protocol. Using AF_INET
+Socket Buffers: R=[212992->212992] S=[212992->212992]
+UDPv4 link local (bound): [AF_INET][undef]:1194
+UDPv4 link remote: [AF_UNSPEC]
+UID set to nobody
+GID set to nogroup
+Capabilities retained: CAP_NET_ADMIN
+MULTI: multi_init called, r=256 v=256
+IFCONFIG POOL IPv4: base=10.8.0.2 size=253
+IFCONFIG POOL LIST
+Initialization Sequence Completed

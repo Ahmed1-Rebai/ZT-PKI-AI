@@ -1,5 +1,5 @@
 # ZT-PKI-AI — convenience targets. Run from infra/.
-.PHONY: help tools core detection workloads client up provision ai mgmt-host isolate reconnect status halt destroy lint
+.PHONY: help tools core detection workloads client up provision ai mgmt-host isolate reconnect status halt destroy lint vpn vpn-check
 
 help:
 	@echo "tools       - install Vagrant + Ansible (Debian/Ubuntu host, needs sudo)"
@@ -9,6 +9,8 @@ help:
 	@echo "client      - bring up client-lin"
 	@echo "up          - bring up ALL VMs (~18 GB RAM; AI is on the host)"
 	@echo "provision   - re-run Ansible on all running VMs"
+	@echo "vpn         - M2: sync PKI, provision zt-gw, build alice.ovpn, provision client-lin"
+	@echo "vpn-check   - M2: run the VPN/gateway verification checks"
 	@echo "ai          - configure the AI engine on THIS host (GPU), via Ansible --limit ai"
 	@echo "mgmt-host   - set this host's mgmt IP to 10.10.99.2 on the host-only adapter"
 	@echo "isolate     - detach NAT (eth0) from lab VMs for attack tests"
@@ -27,6 +29,10 @@ client:      ; vagrant up client-lin
 up:          ; vagrant up
 provision:   ; vagrant provision
 ai:          ; cd ansible && ansible-playbook -i inventory.ini site.yml --limit ai -K
+
+# M2 — VPN + gateway (docs/05). Builds the OpenVPN gateway + client profile.
+vpn:         ; bash ../vpn/scripts/deploy.sh
+vpn-check:   ; bash ../vpn/scripts/verify.sh
 
 # Give THIS host an address on the mgmt host-only network (AI node = 10.10.99.2).
 # Finds the vboxnet backing 10.10.99.0/24 and assigns the host side .2.
