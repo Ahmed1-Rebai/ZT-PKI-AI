@@ -14,11 +14,13 @@ mkdir -p "$OUT" "$REPO/pdp/ssh"
 
 fetch() {
   local remote="$1" local="$2"
-  if ! (cd "$INFRA" && vagrant ssh sub-ca -c "cat '$remote'" > "$local") || [[ ! -s "$local" ]]; then
-    rm -f "$local"
-    echo "Missing $remote on sub-ca" >&2
+  # Fetch to a temp file: a failed fetch must never destroy the staged copy.
+  if ! (cd "$INFRA" && vagrant ssh sub-ca -c "cat '$remote'" > "$local.tmp") || [[ ! -s "$local.tmp" ]]; then
+    rm -f "$local.tmp"
+    echo "Missing $remote on sub-ca — kept existing $(basename "$local")" >&2
     return 1
   fi
+  mv -f "$local.tmp" "$local"
 }
 
 fetch "$SUBCA/certs/ca-chain.crt" "$OUT/ca-chain.crt"

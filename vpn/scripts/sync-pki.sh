@@ -16,11 +16,13 @@ mkdir -p "$GW_PKI" "$CL_PKI"
 
 fetch() {  # fetch <vm> <remote-path> <local-path>
   local vm="$1" path="$2" out="$3"
-  if vagrant ssh "$vm" -c "cat '$path'" 2>/dev/null > "$out" && [ -s "$out" ]; then
+  # Fetch to a temp file: a failed fetch must never destroy the staged copy.
+  if vagrant ssh "$vm" -c "cat '$path'" 2>/dev/null > "$out.tmp" && [ -s "$out.tmp" ]; then
+    mv -f "$out.tmp" "$out"
     return 0
   fi
-  rm -f "$out"
-  echo "    missing: $path (on $vm)" >&2
+  rm -f "$out.tmp"
+  echo "    missing: $path (on $vm) — kept existing $(basename "$out")" >&2
   return 1
 }
 

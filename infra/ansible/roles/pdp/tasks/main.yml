@@ -6,9 +6,24 @@
 
 - name: Install PDP runtime packages
   ansible.builtin.apt:
-    name: [docker.io, docker-compose-plugin]
+    name: [docker.io]
     state: present
     update_cache: true
+
+# Debian 12 ships no compose v2 plugin; install the official static binary,
+# verified against the release's published SHA-256.
+- name: Create docker CLI plugin directory
+  ansible.builtin.file:
+    path: /usr/local/lib/docker/cli-plugins
+    state: directory
+    mode: "0755"
+
+- name: Install docker compose v2 plugin
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/download/{{ zt_compose_version }}/docker-compose-linux-x86_64"
+    dest: /usr/local/lib/docker/cli-plugins/docker-compose
+    checksum: "sha256:https://github.com/docker/compose/releases/download/{{ zt_compose_version }}/docker-compose-linux-x86_64.sha256"
+    mode: "0755"
 
 - name: Create PDP runtime directories
   ansible.builtin.file:

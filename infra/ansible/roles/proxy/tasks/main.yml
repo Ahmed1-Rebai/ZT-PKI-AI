@@ -1,11 +1,93 @@
 ---
-# Role: proxy
-# M6 · docs/06 §7 — Nginx mTLS reverse proxy (DMZ), client-cert required, CRL, forward CN to app.
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: proxy — Nginx mTLS reverse proxy in the DMZ (10.10.10.10:443), docs/06 §7.
+# Second PEP layer: every request needs a client certificate from the lab CA
+# (checked against the CRL); the certified CN is forwarded to the app.
 
-- name: proxy role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (proxy): M6 · docs/06 §7 — Nginx mTLS reverse proxy (DMZ), client-cert required, CRL, forward CN to app."
+- name: Static routes via the gateway
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
+
+- name: Install nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+
+- name: Check staged proxy PKI exists (on the control node)
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/apps/proxy/pki/{{ item }}"
+  delegate_to: localhost
+  become: false
+  register: zt_proxy_pki
+  loop: [ca-chain.crt, crl.pem, proxy.lab.local.crt, proxy.lab.local.key]
+
+- name: Require staged proxy PKI
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing apps/proxy/pki/{{ item.item }} — run apps/proxy/sync-pki.sh first."
+  loop: "{{ zt_proxy_pki.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create proxy PKI directory
+  ansible.builtin.file:
+    path: "{{ zt_proxy_pki_dir }}"
+    state: directory
+    owner: root
+    group: www-data
+    mode: "0750"
+
+- name: Deploy public PKI material (CA chain, CRL bundle, proxy cert)
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/proxy/pki/{{ item }}"
+    dest: "{{ zt_proxy_pki_dir }}/{{ item }}"
+    owner: root
+    group: www-data
+    mode: "0644"
+  loop: [ca-chain.crt, crl.pem, proxy.lab.local.crt]
+  notify: reload nginx
+
+- name: Deploy proxy private key
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/proxy/pki/proxy.lab.local.key"
+    dest: "{{ zt_proxy_pki_dir }}/proxy.lab.local.key"
+    owner: root
+    group: www-data
+    mode: "0640"
+  notify: reload nginx
+
+- name: Deploy CN extraction map
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/proxy/nginx/zt-map.conf"
+    dest: /etc/nginx/conf.d/zt-map.conf
+    mode: "0644"
+  notify: reload nginx
+
+- name: Deploy proxy site
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/proxy/nginx/zt-proxy.conf"
+    dest: /etc/nginx/sites-available/zt-proxy.conf
+    mode: "0644"
+  notify: reload nginx
+
+- name: Enable proxy site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/zt-proxy.conf
+    dest: /etc/nginx/sites-enabled/zt-proxy.conf
+    state: link
+  notify: reload nginx
+
+- name: Disable the default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+
+- name: Validate nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Enable and start nginx
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started
