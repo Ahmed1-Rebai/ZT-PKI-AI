@@ -1,0 +1,24 @@
+{
+  "measured": "2026-10-11T20:06:29Z",
+  "throughput_mbps": {
+    "A_plain": 3913.8,
+    "B_tunnel": 273.5,
+    "C_full_zt": 33.2
+  },
+  "overhead_pct_vs_plain": {
+    "B_tunnel": 93.0,
+    "C_full_zt": 99.2
+  },
+  "rtt_ms": {
+    "A_plain": 0.318,
+    "B_tunnel": 0.678
+  },
+  "gateway_cpu_pct_during_C": 38.76,
+  "openvpn_connect_s": 1.27710364,
+  "pdp_authenticate_median_ms": 19.1,
+  "targets": {
+    "throughput_overhead_pct": 15,
+    "access_decision_ms": 500
+  },
+  "method": "iperf3 TCP -P4 -t10, median of 3; ping 40x; VirtualBox 7.1 virtio; temporary zt-perf rules removed after"
+}
