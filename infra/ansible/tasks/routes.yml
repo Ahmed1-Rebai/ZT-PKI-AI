@@ -1,0 +1,35 @@
+---
+# Shared: persistent static routes to other zones via the gateway.
+# Include from a role that defines `zt_routes` (list of "<net> via <gw>").
+# A systemd oneshot works the same on Debian (ifupdown) and Ubuntu (netplan),
+# and re-applies the routes at every boot.
+
+- name: Install zt-routes unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/zt-routes.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=ZT lab static routes via the gateway
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      {% for r in zt_routes %}
+      ExecStart=/bin/sh -c 'ip route replace {{ r }}'
+      {% endfor %}
+
+      [Install]
+      WantedBy=multi-user.target
+  register: zt_routes_unit
+
+- name: Enable and (re)apply zt-routes
+  ansible.builtin.systemd:
+    name: zt-routes
+    enabled: true
+    state: "{{ 'restarted' if zt_routes_unit.changed else 'started' }}"
+    daemon_reload: "{{ zt_routes_unit.changed }}"

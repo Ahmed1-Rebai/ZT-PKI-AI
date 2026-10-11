@@ -1,0 +1,4 @@
+---
+# Return path to VPN clients (posture channel replies) via the gateway.
+zt_routes:
+  - "{{ vpn_pool }} via 10.10.99.1"

@@ -1,6 +1,9 @@
 ---
 # Role: pdp — M3 control plane (FastAPI + OPA + Redis), docs/06.
 
+- name: Static routes via the gateway
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
+
 - name: Install PDP runtime packages
   ansible.builtin.apt:
     name: [docker.io, docker-compose-plugin]
