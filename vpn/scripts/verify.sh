@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# M2 verification: exercises the VPN + gateway controls against the lab and
-# prints PASS/FAIL for each. Non-destructive where possible; the revoked-cert
+# VPN + gateway verification (M2 controls, in the enforced M3+ mode): exercises
+# the controls against the lab and prints PASS/FAIL for each. Non-destructive where possible; the revoked-cert
 # check re-issues alice's certificate afterwards.
 #
 #   usage: vpn/scripts/verify.sh            (safe checks only)
@@ -24,7 +24,7 @@ gssh zt-gw 'systemctl is-active --quiet openvpn-server@server' && ok "OpenVPN se
 gssh zt-gw "ss -lun | grep -q ':1194'" && ok "UDP/1194 listening" || ko "UDP/1194 listening"
 gssh zt-gw 'sudo nft list chain inet zt_input input 2>/dev/null | grep -q "policy drop"' && ok "input chain deny-by-default" || ko "input chain deny-by-default"
 gssh zt-gw 'sudo nft list chain inet zt forward 2>/dev/null | grep -q "policy drop"' && ok "forward chain deny-by-default" || ko "forward chain deny-by-default"
-gssh zt-gw 'grep -q "^PDP_ENFORCE=0" /etc/openvpn/zt/hook.env' && ok "hook mode = bootstrap (PDP_ENFORCE=0)" || ko "hook mode = bootstrap"
+gssh zt-gw 'sudo grep -q "^PDP_ENFORCE=1" /etc/openvpn/zt/hook.env' && ok "hook mode = enforced, fail-closed (PDP_ENFORCE=1)" || ko "hook mode = enforced (PDP_ENFORCE=1)"
 
 echo "== [2] Valid client connects (S-valid) =="
 gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1'
@@ -32,7 +32,9 @@ gssh client-lin 'sudo openvpn --config /etc/openvpn/client/alice.conf --daemon z
 sleep 8
 VPNIP="$(gssh client-lin "ip -4 addr show tun0 2>/dev/null | awk '/inet /{print \$2}'")"
 if [ -n "$VPNIP" ]; then ok "tunnel up, fixed IP = $VPNIP"; else ko "tunnel up (no tun0 address)"; fi
-gssh zt-gw 'sudo nft list chain inet zt forward | grep -q "10.8.0.0/24"' && ko "forward chain leaks the VPN subnet" || ok "forward chain isolates the VPN subnet (deny-by-default)"
+# The only subnet-wide rule allowed is the posture channel to the PDP API.
+gssh zt-gw 'sudo nft list chain inet zt forward | grep "10.8.0.0/24" | grep -vq "ip daddr 10.10.99.10 tcp dport 8443 accept"' \
+  && ko "forward chain leaks the VPN subnet" || ok "forward chain isolates the VPN subnet (only the posture channel)"
 
 echo "== [3] S1 — no client certificate =="
 gssh client-lin 'sudo cp /etc/openvpn/client/alice.conf /tmp/alice.ro && sudo chmod 644 /tmp/alice.ro; set -e
@@ -79,16 +81,16 @@ if [ "$FULL" = "--full" ]; then
   echo "  (alice re-issued and redeployed)"
 
   echo "== [6] S14 — PDP down => fail-closed =="
-  gssh zt-gw "sudo sed -i 's/^PDP_ENFORCE=.*/PDP_ENFORCE=1/' /etc/openvpn/zt/hook.env && sudo systemctl restart openvpn-server@server" >/dev/null 2>&1
-  sleep 2
+  gssh zt-pdp "sudo docker stop zt-pdp-pdp-1" >/dev/null 2>&1
   gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1; sudo openvpn --config /etc/openvpn/client/alice.conf --daemon ztcheck3'
   sleep 8
   gssh client-lin 'ip link show tun0 >/dev/null 2>&1' && ko "PDP down still allowed access" || ok "PDP down => connection refused (fail-closed)"
-  gssh zt-gw "sudo sed -i 's/^PDP_ENFORCE=.*/PDP_ENFORCE=0/' /etc/openvpn/zt/hook.env && sudo systemctl restart openvpn-server@server" >/dev/null 2>&1
-  echo "  (hook mode restored to bootstrap)"
+  gssh zt-pdp "sudo docker start zt-pdp-pdp-1" >/dev/null 2>&1
+  echo "  (PDP restarted)"
 fi
 
-gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; true' >/dev/null 2>&1
+# Back to the managed tunnel (the checks above ran their own openvpn processes).
+gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1; sudo systemctl restart openvpn-client@alice; true' >/dev/null 2>&1
 echo
 echo "== summary: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]

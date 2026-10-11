@@ -1,0 +1,25 @@
+{
+  "measured": "2026-10-11T20:30:48Z",
+  "path": "client-lin tun0 -> zt-gw (nftables) -> web-app 10.10.20.10:5201",
+  "throughput_mbps": {
+    "A": 35.5,
+    "B": 33.1,
+    "C": 33.3,
+    "D": 37.1,
+    "D_no_mirror": 93.7
+  },
+  "gateway_cpu_pct": {
+    "A": 43.22,
+    "B": 45.57,
+    "C": 41.05,
+    "D": 44.88,
+    "D_no_mirror": 45.13
+  },
+  "overhead_pct_vs_A": {
+    "B": 6.8,
+    "C": 6.2,
+    "D": -4.5,
+    "D_no_mirror": -163.9
+  },
+  "method": "iperf3 TCP -P4 -t10, median of 3 per config; mirror = tc mirred of the zone NICs to the sensor"
+}

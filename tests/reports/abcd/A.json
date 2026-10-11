@@ -1,0 +1,66 @@
+{
+  "config": "A",
+  "measured": "2026-10-11T20:39:38Z",
+  "alice_allow_web": null,
+  "rights_expire": false,
+  "reachable": 7,
+  "violations": 5,
+  "targets": [
+    {
+      "target": "proxy_https_mtls",
+      "dst": "10.10.10.10:443",
+      "zt_expected": "allow",
+      "result": "open",
+      "http_code": "200",
+      "violation": false
+    },
+    {
+      "target": "app_direct_8080",
+      "dst": "10.10.20.10:8080",
+      "zt_expected": "deny",
+      "result": "open",
+      "http_code": null,
+      "violation": true
+    },
+    {
+      "target": "app_ssh_admin_only",
+      "dst": "10.10.20.10:22",
+      "zt_expected": "deny",
+      "result": "open",
+      "http_code": null,
+      "violation": true
+    },
+    {
+      "target": "db_5432",
+      "dst": "10.10.30.10:5432",
+      "zt_expected": "deny",
+      "result": "open",
+      "http_code": null,
+      "violation": true
+    },
+    {
+      "target": "pki_subca_ssh",
+      "dst": "10.10.99.5:22",
+      "zt_expected": "deny",
+      "result": "open",
+      "http_code": null,
+      "violation": true
+    },
+    {
+      "target": "siem_dashboard",
+      "dst": "10.10.99.20:443",
+      "zt_expected": "deny",
+      "result": "open",
+      "http_code": null,
+      "violation": true
+    },
+    {
+      "target": "pdp_posture_channel",
+      "dst": "10.10.99.10:8443",
+      "zt_expected": "allow",
+      "result": "open",
+      "http_code": null,
+      "violation": false
+    }
+  ]
+}

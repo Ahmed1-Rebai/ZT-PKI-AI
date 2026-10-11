@@ -130,11 +130,14 @@ Models (6 → 20 Dec) — train on the RTX 5050
 
 - [ ] 🔴 Full campaign S1–S17 with evidence for each (screenshots, logs, pcaps)
 - [ ] 🔴 **S16** low-and-slow evasion, **S17** model poisoning (theoretical / controlled)
-- [ ] 👥 Comparative evaluation of configs **A / B / C / D** (perimeter → static ZT → dynamic PDP → AI in the loop)
-- [ ] 🔵 Performance: iperf3 throughput, latency, handshake time, CPU/RAM (overhead ≤ 15 %)
-- [ ] 👥 Results tables + charts
+- [x] 🔵 A/B/C/D tooling: `tests/abcd/set-config.sh` switches the lab, `probe.sh` measures the exposed surface, `run-all.sh` runs all four and returns to D. Benign result: **A 7/7 services reachable (5 ZT violations), B/C/D 2/7 (0)**
+- [ ] 👥 Comparative evaluation of configs **A / B / C / D** under attack: S8–S11, S16 detection + TTD/TTQ per config (same switcher)
+- [x] 🔵 Performance ([tests/reports/perf.md](tests/reports/perf.md)): PDP decision **19.1 ms** (≤ 500 ms ✔), ZT controls overhead **≤ 6.8 %** on the same path (≤ 15 % ✔). The software traffic mirror costs 60 % (VirtualBox has no port mirroring) → hypervisor SPAN / DCO / WireGuard
+- [x] 🔵 Results tables + charts generator `tests/reports/make_report.py` → [results.md](tests/reports/results.md), `charts/*.png`
+- [ ] 👥 Results tables + charts for the attack campaign (add the Red Team JSON, re-run the generator)
 - [ ] 🔴 Red Team report: findings, what bypassed controls, recommendations
-- [ ] 🔵 Fix findings and re-test
+- [x] 🔵 Fix Blue Team findings and re-test (F1–F6 in [perf.md §5](tests/reports/perf.md)): fresh-device quarantine admission, `effective_tier` everywhere, fail-safe revoke/kill, immediate critical floor, posture call rate, `verify.sh` 9/9; PDP tests 14/14
+- [ ] 🔵 Fix Red Team findings and re-test (after the joint session)
 
 ## 11. Deliverables — 6 → 20 Jan · milestone M8
 

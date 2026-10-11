@@ -21,10 +21,10 @@ class Policy:
         role = input["identity"]["role"]
         score = input["trust_score"]
         thresholds = {"employee": 60, "admin": 85, "contractor": 70}
-        allow = bool(input["identity"]["cert_valid"] and not input["identity"]["revoked"]
-                     and input["device"]["posture_ok"] and score >= thresholds.get(role, 101))
+        admit = bool(role in thresholds and input["identity"]["cert_valid"] and not input["identity"]["revoked"])
+        allow = admit and input["device"]["posture_ok"] and score >= thresholds[role]
         tier = "full" if score >= 80 else "restricted" if score >= 50 else "quarantine" if score >= 20 else "revoke"
-        return {"allow": allow, "tier": tier, "reason": "test"}
+        return {"allow": allow, "admit": admit, "tier": tier, "reason": "test"}
 
 
 class Gate:
@@ -42,15 +42,63 @@ def client():
     return TestClient(as_caller(app, "10.10.99.1")), gate
 
 
-def test_authentication_denies_without_posture_then_opens_session():
+def test_fresh_device_is_admitted_to_quarantine_then_upgraded_by_posture():
+    """Gap (a): no posture yet must not lock the device out of the posture channel."""
     c, gate = client()
     with c:
-        assert c.post("/v1/authenticate", json={"cn": "alice@lab.local", "serial": "20", "src_ip": "x"}).json()["decision"] == "deny"
-        assert c.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1, "detail": {}}).status_code == 200
+        auth = c.post("/v1/authenticate", json={"cn": "alice@lab.local", "serial": "20", "src_ip": "x"}).json()
+        assert auth["decision"] == "allow" and auth["tier"] == "quarantine"
         opened = c.post("/v1/session/open", json={"cn": "alice@lab.local", "serial": "20"}).json()
-        assert opened["decision"] == "allow"
+        assert opened["decision"] == "allow" and opened["tier"] == "quarantine"
         assert opened["vpn_ip"] == "10.8.0.10"
-        assert gate.calls[0][0] == "apply"
+        assert gate.calls[-1] == ("apply", "10.8.0.10", "employee", "quarantine")
+        # a good posture report re-scores the open session immediately
+        assert c.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1}).json()["tier"] == "full"
+        assert gate.calls[-1] == ("apply", "10.8.0.10", "employee", "full")
+
+
+def test_unknown_or_revoked_identity_is_refused_the_tunnel():
+    c, gate = client()
+    with c:
+        assert c.post("/v1/authenticate", json={"cn": "mallory@lab.local", "serial": "99"}).json()["decision"] == "deny"
+        c.post("/v1/cert/20/revoke")
+        assert c.post("/v1/session/open", json={"cn": "alice@lab.local", "serial": "20"}).json()["decision"] == "deny"
+        assert not [x for x in gate.calls if x[0] == "apply"]
+
+
+def test_ai_event_never_grants_more_than_policy_allows():
+    """Gap (b): a good score tier must not bypass a failing posture."""
+    c, gate = client()
+    with c:
+        c.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1})
+        c.post("/v1/session/open", json={"cn": "alice@lab.local", "serial": "20"})
+        c.post("/v1/posture", json={"cn": "alice@lab.local", "score": 0.2})   # posture now fails
+        r = c.post("/v1/events", json={"cn": "alice@lab.local", "anomaly": 0, "source": "test"}).json()
+        assert r["tier"] == "quarantine"
+        assert gate.calls[-1] == ("apply", "10.8.0.10", "employee", "quarantine")
+
+
+def test_critical_event_revokes_rights():
+    c, gate = client()
+    with c:
+        c.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1})
+        c.post("/v1/session/open", json={"cn": "alice@lab.local", "serial": "20"})
+        r = c.post("/v1/events", json={"cn": "alice@lab.local", "anomaly": 1, "source": "test", "critical": True}).json()
+        assert r["tier"] == "revoke"
+        assert gate.calls[-1] == ("apply", "10.8.0.10", "employee", "revoke")
+
+
+def test_revoke_kills_tunnel_even_if_rule_removal_fails():
+    """Gap (c): the VPN session is killed whatever happens to the nft step."""
+    c, gate = client()
+    def broken(*a): raise RuntimeError("gateway unreachable")
+    with c:
+        c.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1})
+        c.post("/v1/session/open", json={"cn": "alice@lab.local", "serial": "20"})
+        gate.clear = broken
+        c.post("/v1/cert/20/revoke")
+        assert ("kill", "alice@lab.local") in gate.calls
+        assert c.get("/v1/sessions").json()["sessions"] == []
 
 
 def test_revoke_terminates_matching_session():

@@ -40,8 +40,11 @@ PDP exposes `https://10.10.99.10:8443` with mandatory client TLS.
    restricted gateway SSH key is absent. No credential is committed.
 
 3. Seed/adjust `pdp/policies/data.json` before deployment. A newly known user
-   begins with posture `0`, so authentication is denied until the posture agent
-   sends an attestation. Every 60 seconds the PDP re-evaluates active sessions;
+   begins with posture `0`: the tunnel is admitted on identity alone (`admit`),
+   but the session opens in **quarantine** (posture channel + remediation
+   portal only) until the posture agent's report re-scores it. Resource tiers
+   apply only when the policy's `allow` holds (`effective_tier`). Every 60
+   seconds the PDP re-evaluates active sessions;
    gateway rules expire naturally if that loop or the PDP fails.
 
 `/v1/cert/{serial}/revoke` immediately denies the serial in the PDP and tears

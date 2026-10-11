@@ -66,6 +66,18 @@ def _vpn_ip(value: str) -> str:
     return str(ip)
 
 
+def effective_tier(user: dict[str, Any] | None, decision: dict[str, Any]) -> str:
+    """The tier actually enforced. Score tiers apply only when access is allowed:
+    an admitted identity whose posture or role score floor fails gets at most
+    quarantine (remediation), and anything not admitted is revoked."""
+    if not user or not decision.get("admit", decision.get("allow", False)):
+        return "revoke"
+    tier = str(decision.get("tier", "revoke"))
+    if decision.get("allow"):
+        return tier
+    return tier if tier in ("quarantine", "revoke") else "quarantine"
+
+
 def load_directory(path: str) -> dict[str, dict[str, Any]]:
     """Read the user directory (CN -> role, vpn_ip) from data.json; empty if absent."""
     if not path or not os.path.exists(path):
@@ -84,12 +96,12 @@ def build_app(store: Store | None = None, policy: Any | None = None,
             for session in repo.sessions():
                 try:
                     user, score, decision = evaluate(session["cn"], session["serial"])
-                    if not user or not decision.get("allow"):
+                    tier = effective_tier(user, decision)
+                    if tier == "revoke":
                         gate.clear(session["vpn_ip"])
                         repo.delete_session(session["cn"])
                         emit("ttl_renewal", cn=session["cn"], decision="expired", score=score)
                         continue
-                    tier = str(decision.get("tier", "restricted"))
                     gate.apply(session["vpn_ip"], user["role"], tier)
                     session.update({"tier": tier, "score": score, "renewed_at": time.time()})
                     repo.put_session(session["cn"], session, cfg.session_ttl_seconds)
@@ -159,22 +171,26 @@ def build_app(store: Store | None = None, policy: Any | None = None,
 
     @app.post("/v1/authenticate", dependencies=service)
     def authenticate(req: AuthRequest) -> dict[str, Any]:
+        # Tunnel admission (tls-verify): identity only. Resource rights are the
+        # tier applied at session open, so a device without posture yet can
+        # still connect, land in quarantine and report its posture.
         user, score, decision = evaluate(req.cn, req.serial)
-        allow = bool(decision.get("allow", False))
+        tier = effective_tier(user, decision)
+        allow = tier != "revoke"
         reason = decision.get("reason", "policy")
         emit("authenticate", cn=req.cn, serial=_serial(req.serial), src_ip=req.src_ip, score=score,
-             tier=decision.get("tier"), decision="allow" if allow else "deny", reason=reason)
-        return {"decision": "allow" if allow else "deny", "score": score, "tier": decision.get("tier", "revoke"), "reason": reason}
+             tier=tier, decision="allow" if allow else "deny", reason=reason)
+        return {"decision": "allow" if allow else "deny", "score": score, "tier": tier, "reason": reason}
 
     @app.post("/v1/session/open", dependencies=service)
     def session_open(req: SessionRequest) -> dict[str, Any]:
         repo, _, gate = state()
         user, score, decision = evaluate(req.cn, req.serial)
-        if not user or not decision.get("allow"):
+        tier = effective_tier(user, decision)
+        if tier == "revoke":
             emit("session_open", cn=req.cn, decision="deny", score=score, reason=decision.get("reason", "policy"))
             return {"decision": "deny", "score": score, "reason": decision.get("reason", "policy")}
         vpn_ip = _vpn_ip(req.vpn_ip or user.get("vpn_ip", ""))
-        tier = str(decision.get("tier", "restricted"))
         try:
             gate.apply(vpn_ip, user["role"], tier)
         except Exception as exc:  # enforcement failure must not create a session
@@ -216,51 +232,79 @@ def build_app(store: Store | None = None, policy: Any | None = None,
             raise HTTPException(404, "unknown identity")
         repo.set_posture(req.cn, req.score, req.detail)
         emit("posture", cn=req.cn, score=req.score, caller=caller, detail=req.detail)
-        return {"decision": "recorded", "score": req.score}
+        # Re-score an open session now (quarantine -> full on a good report,
+        # or down on a bad one) instead of waiting for the renewal loop.
+        tier = rescore_session(req.cn, source="posture")
+        return {"decision": "recorded", "score": req.score, "tier": tier}
+
+    def rescore_session(cn: str, source: str, critical: bool = False,
+                        detail: dict[str, Any] | None = None) -> str | None:
+        """Re-evaluate cn's open session and enforce the resulting tier."""
+        repo, _, gate = state()
+        session = repo.session(cn)
+        if not session:
+            return None
+        user, score, decision = evaluate(cn, session["serial"], critical)
+        tier = effective_tier(user, decision)
+        if source == "posture" and tier == session.get("tier"):
+            return tier  # client-triggered: touch the gateway only on a tier change
+        try:
+            gate.apply(session["vpn_ip"], session["role"], tier)
+        except Exception as exc:
+            emit("enforcement_error", cn=cn, error=str(exc))
+            with suppress(Exception):
+                gate.clear(session["vpn_ip"])
+            tier = "revoke"
+        session.update({"tier": tier, "score": score, "last_event": time.time()})
+        repo.put_session(cn, session, cfg.session_ttl_seconds)
+        emit("rescore", cn=cn, anomaly=repo.anomaly(cn), score=score, tier=tier, source=source,
+             critical=critical, allow=bool(decision.get("allow")), detail=detail or {})
+        return tier
 
     @app.post("/v1/events", dependencies=service)
     def event(req: EventRequest) -> dict[str, Any]:
-        repo, _, gate = state()
+        repo = state()[0]
         if not repo.user(req.cn):
             raise HTTPException(404, "unknown identity")
         anomaly = ema(repo.anomaly(req.cn), req.anomaly)
+        if req.critical:  # already burst-confirmed by the AI engine: no smoothing delay (TTQ)
+            anomaly = max(anomaly, req.anomaly)
         repo.set_anomaly(req.cn, anomaly)
+        tier = rescore_session(req.cn, source=req.source, critical=req.critical, detail=req.detail)
         session = repo.session(req.cn)
-        user, score, decision = evaluate(req.cn, session["serial"] if session else "", req.critical)
-        tier = str(decision.get("tier", "revoke"))
-        if session and user:
-            try:
-                gate.apply(session["vpn_ip"], user["role"], tier)
-                session.update({"tier": tier, "score": score, "last_event": time.time()})
-                repo.put_session(req.cn, session, cfg.session_ttl_seconds)
-            except Exception as exc:
-                emit("enforcement_error", cn=req.cn, error=str(exc))
-                tier = "revoke"
-        emit("rescore", cn=req.cn, anomaly=anomaly, score=score, tier=tier, source=req.source,
-             critical=req.critical, detail=req.detail)
-        return {"score": score, "anomaly": anomaly, "tier": tier}
+        if not session:  # nothing to enforce; keep the score for the next session
+            emit("rescore", cn=req.cn, anomaly=anomaly, tier="no-session", source=req.source,
+                 critical=req.critical, detail=req.detail)
+            return {"score": evaluate(req.cn, "", req.critical)[1], "anomaly": anomaly, "tier": "no-session"}
+        return {"score": session["score"], "anomaly": anomaly, "tier": tier}
+
+    def terminate(session: dict[str, Any], reason: str) -> None:
+        """Remove the rights and kill the tunnel; one failing step must not skip the other."""
+        repo, _, gate = state()
+        for step in (lambda: gate.clear(session["vpn_ip"]), lambda: gate.kill(session["cn"])):
+            try: step()
+            except Exception as exc: emit("enforcement_error", cn=session["cn"], error=str(exc))
+        repo.delete_session(session["cn"])
+        emit("session_kill", cn=session["cn"], found=True, reason=reason)
 
     @app.post("/v1/session/{cn}/kill", dependencies=service)
     def kill(cn: str) -> dict[str, str]:
-        repo, _, gate = state()
+        repo = state()[0]
         session = repo.session(cn)
         if session:
-            gate.clear(session["vpn_ip"])
-            gate.kill(cn)
-            repo.delete_session(cn)
-        emit("session_kill", cn=cn, found=bool(session))
+            terminate(session, "operator-kill")
+        else:
+            emit("session_kill", cn=cn, found=False)
         return {"decision": "killed"}
 
     @app.post("/v1/cert/{serial}/revoke", dependencies=service)
     def revoke(serial: str) -> dict[str, str]:
-        repo, _, gate = state()
+        repo = state()[0]
         serial = _serial(serial)
         repo.revoke(serial)
         for session in repo.sessions():
             if session["serial"] == serial:
-                gate.clear(session["vpn_ip"])
-                gate.kill(session["cn"])
-                repo.delete_session(session["cn"])
+                terminate(session, "certificate-revoked")
         # The online CA is deliberately separate. Its signed CRL update is run
         # by the CA operator; PDP denial takes effect immediately in the meantime.
         emit("certificate_revoke", serial=serial, crl_update="operator-required")
