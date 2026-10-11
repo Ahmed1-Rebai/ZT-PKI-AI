@@ -109,12 +109,12 @@ Models (6 → 20 Dec) — train on the RTX 5050
 
 ## 8. Closed loop AI → PDP → PEP — 6 → 20 Dec · milestone M5 `[MVP]`
 
-- [ ] 🔵 Traffic mirror from gateway to sensor (`tc` mirred)
-- [ ] 🔵 Inference service `ai/serve.py` → `POST /v1/events` (VPN IP → CN lookup in Redis)
-- [ ] 🔵 Tiers applied automatically: restrict / quarantine / revoke
+- [x] 🔵 Traffic mirror: dedicated `zt-mirror` internal net, gateway `zt-mirror` unit copies dmz/app/data/mgmt NICs (`tc mirred`) to the sensor (promiscuous); decrypted client flows keep their tunnel source IP
+- [x] 🔵 Inference service `ai/serve.py` on the sensor (CPU; training on host GPU): NFStream → user via PDP `/v1/sessions` → signed models → `POST /v1/events` (mTLS `ai.lab.local`); verified on alice's live tunnel traffic (score 0.0084, PDP 96.7 full)
+- [x] 🔵 Tiers applied automatically (synthetic events, no attack): full 84.9 → **restricted** 77.7…69.3 → critical → score **0 / revoke**, gateway rule removed, PDP+enforcement in **356 ms**; alice blocked; after low scores → 95.7 full, rule restored in ~5 s, alice 200 again
 - [ ] 🔴 Run **S8** (internal scan), **S9** (SSH brute force), **S10** (exfiltration), **S11** (DNS tunnel)
-- [ ] 👥 Measure **TTD ≤ 10 s** and **TTQ ≤ 15 s** (cross-checked timestamps)
-- [ ] 🔵 Snapshot `ai-ok`
+- [ ] 👥 Measure **TTD ≤ 10 s** and **TTQ ≤ 15 s** on real S8–S11 runs (expected: flow expiry ≤ 5 s idle + scoring ms + 5-flow burst + 0.36 s enforcement)
+- [x] 🔵 Snapshot `ai-ok` (all active VMs)
 
 ## 9. Monitoring: Suricata + Wazuh — 13 → 23 Dec · milestone M6 `[MVP]`
 
