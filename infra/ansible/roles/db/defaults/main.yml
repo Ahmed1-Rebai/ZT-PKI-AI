@@ -1,0 +1,11 @@
+---
+# Overridable in group_vars/all.yml.
+zt_db_name: ztapp
+zt_db_user: ztapp
+zt_db_pass: ztapp-demo-pass
+
+# Static routes so the VM can reach other zones via the gateway (no NAT on the
+# data path; the gateway forwards between zones).
+zt_routes:
+  - "10.10.10.0/24 via 10.10.30.1"
+  - "10.10.20.0/24 via 10.10.30.1"

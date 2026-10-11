@@ -72,6 +72,11 @@ Vagrant.configure("2") do |config|
         vb.name   = name
         vb.cpus   = o[:cpus]
         vb.memory = o[:mem]
+        # virtio-net on ALL adapters (NAT + zones). The default 82540EM (e1000)
+        # duplicates frames on VirtualBox internal networks, which resets every
+        # cross-zone TCP connection. Setting it here (from creation) keeps the
+        # adapter ordering consistent so eth0=NAT survives.
+        vb.default_nic_type = "virtio"
         vb.customize ["modifyvm", :id, "--groups", "/ZT-PKI-AI"]
       end
 

@@ -1,11 +1,49 @@
 ---
-# Role: db
-# M6 · docs/06 §6 — PostgreSQL, reachable only from web-app (app -> DB :5432).
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: db — PostgreSQL in the data zone (10.10.30.10), docs/06 §6.
+# Only web-app (10.10.20.10) may connect, as the `ztapp` role, over :5432 —
+# matching the gateway's single app -> db forward rule.
 
-- name: db role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (db): M6 · docs/06 §6 — PostgreSQL, reachable only from web-app (app -> DB :5432)."
+- name: Static routes via the gateway
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
+
+- name: Install PostgreSQL
+  ansible.builtin.apt:
+    name: [postgresql, postgresql-client]
+    state: present
+    update_cache: true
+
+- name: Find the PostgreSQL cluster config directory
+  ansible.builtin.shell: ls -d /etc/postgresql/*/main | head -1
+  register: zt_pg_conf
+  changed_when: false
+
+- name: Listen on the data-zone address (and loopback) only
+  ansible.builtin.lineinfile:
+    path: "{{ zt_pg_conf.stdout }}/postgresql.conf"
+    regexp: "^#?listen_addresses"
+    line: "listen_addresses = 'localhost,10.10.30.10'"
+  notify: restart postgresql
+
+- name: Allow only web-app to reach the app database
+  ansible.builtin.blockinfile:
+    path: "{{ zt_pg_conf.stdout }}/pg_hba.conf"
+    marker: "# {mark} ZT-PKI-AI app access"
+    block: |
+      host  {{ zt_db_name }}  {{ zt_db_user }}  10.10.20.10/32  scram-sha-256
+  notify: restart postgresql
+
+- name: Apply config before loading the schema
+  ansible.builtin.meta: flush_handlers
+
+- name: Stage the schema
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/db/init.sql"
+    dest: /var/lib/postgresql/zt-init.sql
+    owner: postgres
+    group: postgres
+    mode: "0600"
+
+- name: Load schema and demo data (idempotent)
+  # runuser (as root) avoids become_user's ACL requirement on the temp files.
+  ansible.builtin.command: runuser -u postgres -- psql -v ON_ERROR_STOP=1 -f /var/lib/postgresql/zt-init.sql
+  changed_when: false

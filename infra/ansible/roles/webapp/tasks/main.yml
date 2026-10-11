@@ -1,11 +1,79 @@
 ---
-# Role: webapp
-# M6 · docs/06 §7 — Demo Flask app/API on :8080.
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: webapp — demo app/API in the app zone (10.10.20.10:8080), docs/06 §7.
+# Reached only through the mTLS proxy; trusts identity headers the proxy sets.
 
-- name: webapp role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (webapp): M6 · docs/06 §7 — Demo Flask app/API on :8080."
+- name: Static routes via the gateway
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
+
+- name: Install Python runtime
+  ansible.builtin.apt:
+    name: [python3-venv, python3-pip]
+    state: present
+    update_cache: true
+
+- name: Create the service account
+  ansible.builtin.user:
+    name: "{{ zt_webapp_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Create app and config directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: ["{{ zt_webapp_dir }}", /etc/zt-webapp]
+
+- name: Deploy application code
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/webapp/{{ item }}"
+    dest: "{{ zt_webapp_dir }}/{{ item }}"
+    mode: "0644"
+  loop: [app.py, requirements.txt]
+  notify: restart zt-webapp
+
+- name: Install Python dependencies into the venv
+  ansible.builtin.pip:
+    requirements: "{{ zt_webapp_dir }}/requirements.txt"
+    virtualenv: "{{ zt_webapp_dir }}/.venv"
+    virtualenv_command: python3 -m venv
+  notify: restart zt-webapp
+
+- name: Deploy role map
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/webapp/roles.json"
+    dest: /etc/zt-webapp/roles.json
+    mode: "0644"
+  notify: restart zt-webapp
+
+- name: Deploy environment (DB credentials readable by the service only)
+  ansible.builtin.copy:
+    dest: /etc/zt-webapp/webapp.env
+    owner: root
+    group: "{{ zt_webapp_user }}"
+    mode: "0640"
+    content: |
+      ZT_ROLE_FILE=/etc/zt-webapp/roles.json
+      ZT_DB_HOST=10.10.30.10
+      ZT_DB_PORT=5432
+      ZT_DB_NAME={{ zt_db_name | default('ztapp') }}
+      ZT_DB_USER={{ zt_db_user | default('ztapp') }}
+      ZT_DB_PASS={{ zt_db_pass | default('ztapp-demo-pass') }}
+  notify: restart zt-webapp
+
+- name: Install systemd unit
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/webapp/zt-webapp.service"
+    dest: /etc/systemd/system/zt-webapp.service
+    mode: "0644"
+  notify: restart zt-webapp
+
+- name: Enable and start zt-webapp
+  ansible.builtin.systemd:
+    name: zt-webapp
+    enabled: true
+    state: started
+    daemon_reload: true

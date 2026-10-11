@@ -1,0 +1,5 @@
+{
+  "alice@lab.local": "employee",
+  "admin@lab.local": "admin",
+  "carol@lab.local": "contractor"
+}

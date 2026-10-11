@@ -1,0 +1,21 @@
+[Unit]
+Description=ZT-PKI-AI demo web app (Flask/gunicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ztweb
+Group=ztweb
+WorkingDirectory=/opt/zt-webapp
+EnvironmentFile=/etc/zt-webapp/webapp.env
+ExecStart=/opt/zt-webapp/.venv/bin/gunicorn -b 0.0.0.0:8080 -w 2 app:app
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

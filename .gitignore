@@ -1,5 +1,6 @@
 # Local-only docs
 docs/11-architecture-diagram.md
+docs/13-presentation.md
 
 # Secrets / PKI material
 *.key

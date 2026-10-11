@@ -3,6 +3,15 @@
 Hypervisor: **VirtualBox 7.0.16** on the Blue Team host.
 VM layer: **Vagrant** (`Vagrantfile`). Configuration: **Ansible** (`ansible/`).
 
+## ⚠️ Requires VirtualBox ≥ 7.1
+
+VirtualBox **7.0.x duplicates frames on Internal Networks** (confirmed with
+packet counters: the gateway forwards 1 SYN, the receiver sees 2), which resets
+every cross-zone TCP connection and breaks the whole data plane. **Upgrade to
+VirtualBox 7.1.x** (Oracle repo). The Vagrantfile also sets `virtio` on all
+adapters (`vb.default_nic_type`), which keeps the fix stable and the adapter
+order correct (eth0 = NAT).
+
 ## Why Vagrant and not Terraform
 
 Terraform has no maintained VirtualBox provider. On VirtualBox the declarative
