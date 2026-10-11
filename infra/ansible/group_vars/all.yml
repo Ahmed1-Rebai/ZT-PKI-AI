@@ -12,7 +12,7 @@ vpn_port: 1194
 vpn_client_user: alice
 # PDP enforcement in the OpenVPN hooks. 0 = M2 bootstrap (OpenVPN still enforces
 # mTLS + CRL, hooks only log); 1 = M3+ fail-closed (S14). Flip at M3.
-vpn_pdp_enforce: "0"
+vpn_pdp_enforce: "1"
 
 # Networks
 net_untrust: "192.168.100.0/24"

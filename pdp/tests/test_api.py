@@ -7,6 +7,15 @@ from main import build_app
 from store import MemoryStore
 
 
+def as_caller(app, host):
+    """Run `app` as if requests came from `host` (sets the ASGI client address)."""
+    async def wrapped(scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            scope = dict(scope, client=(host, 50000))
+        await app(scope, receive, send)
+    return wrapped
+
+
 class Policy:
     def decide(self, input):
         role = input["identity"]["role"]
@@ -29,7 +38,8 @@ def client():
     users = {"alice@lab.local": {"role": "employee", "vpn_ip": "10.8.0.10"}}
     repo, gate = MemoryStore(users), Gate()
     app = build_app(repo, Policy(), gate, replace(settings, session_ttl_seconds=60))
-    return TestClient(app), gate
+    # Control calls come from the mgmt network (gateway hooks / AI engine).
+    return TestClient(as_caller(app, "10.10.99.1")), gate
 
 
 def test_authentication_denies_without_posture_then_opens_session():
@@ -62,3 +72,35 @@ def test_directory_is_seeded_from_data_json(tmp_path):
     with TestClient(build_app(repo, Policy(), Gate(), cfg)):
         assert repo.user("alice@lab.local") == {"role": "employee", "vpn_ip": "10.8.0.10"}
         assert repo.user_by_ip("10.8.0.10") == "alice@lab.local"
+
+
+def _app():
+    users = {"alice@lab.local": {"role": "employee", "vpn_ip": "10.8.0.10"},
+             "bob@lab.local": {"role": "employee", "vpn_ip": "10.8.0.20"}}
+    return build_app(MemoryStore(users), Policy(), Gate(), replace(settings, session_ttl_seconds=60))
+
+
+def test_vpn_client_can_report_only_its_own_posture():
+    app = _app()
+    alice = TestClient(as_caller(app, "10.8.0.10"))  # alice's tunnel address
+    with alice:
+        assert alice.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1}).status_code == 200
+        # claiming bob's identity from alice's tunnel address is refused
+        assert alice.post("/v1/posture", json={"cn": "bob@lab.local", "score": 1}).status_code == 403
+
+
+def test_vpn_client_cannot_call_control_endpoints():
+    app = _app()
+    alice = TestClient(as_caller(app, "10.8.0.10"))
+    with alice:
+        assert alice.post("/v1/cert/20/revoke").status_code == 403
+        assert alice.post("/v1/events", json={"cn": "bob@lab.local", "anomaly": 1, "source": "x"}).status_code == 403
+        assert alice.get("/v1/sessions").status_code == 403
+
+
+def test_unknown_network_is_refused():
+    app = _app()
+    outsider = TestClient(as_caller(app, "192.168.100.66"))
+    with outsider:
+        assert outsider.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1}).status_code == 403
+        assert outsider.post("/v1/authenticate", json={"cn": "alice@lab.local", "serial": "20"}).status_code == 403

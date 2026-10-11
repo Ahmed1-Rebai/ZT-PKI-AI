@@ -69,14 +69,17 @@
 - [x] 🔵 JSON audit log for every decision
 - [ ] 🔴 Run **S7** (out-of-role SSH → `ZT-DROP`)
 - [ ] 👥 PDP tests table ([docs/06 §10](docs/06-zero-trust-pdp-pep.md))
-- [ ] 🔵 Snapshot `pdp-ok`
+- [x] 🔵 Snapshot `pdp-ok` (then `m3-ok` after the rebuild, all active VMs)
+- [x] 🔵 **PDP enforcement ON (`vpn_pdp_enforce: "1"`) and verified end to end**: alice connects → PDP `authenticate: allow` (score 97, tier full) → `session_open` → gateway `allow_web {10.8.0.10 timeout 10m}` → alice reaches proxy → app → db through the tunnel. Without a PDP session the same request is dropped (`ZT-DROP SRC=10.8.0.10 DPT=443`)
+- [x] 🔵 Review fixes: users seeded from `data.json`; caller authorization (control endpoints only from mgmt; VPN clients get 403); posture bound to the tunnel address (alice cannot report as bob); gateway SSH host key pinned for the enforcer; gateway reuses the staged `ta.key` on rebuild
+- [ ] 🔵 Remaining PDP gaps: (a) a **fresh device** with no posture is denied the tunnel, so it cannot send its first posture report — admit it in quarantine instead (Rego `admit` already separates this); (b) `/v1/events` applies the score tier without checking `allow` (renewal loop corrects it within 60 s); (c) `revoke` tier clears rules but does not kill the session
 
 ## 6. Reverse proxy mTLS + posture agent — 6 → 13 Dec `[MVP]`
 
 - [x] 🔵 Nginx DMZ proxy: client-cert mTLS, CRL, forwards CN to app, `/portal/` for contractors — verified: valid cert 200, no cert / foreign CA 400, **revoked cert 400** (CRL), `/portal/` 403 for employee, spoofed `X-Client-CN` ignored
 - [x] 🔵 Demo web app (Flask) + PostgreSQL, server-to-server rules (proxy → app :8080, app → DB :5432) — least-privilege DB grants (no `secret` column for the app); alice sees 1 record, admin 3
 - [x] 🔵 Lab recovery (VirtualBox 7.0 frame-duplication bug → **VirtualBox 7.1 + virtio**; disk corruption from a full host disk → rebuilt zt-gw/zt-pdp/web-app/db/web-proxy/client-lin; Issuing CA restored and its database rebuilt from evidence, next serial 2016; `ca-recovered` snapshots on both CAs)
-- [ ] 🔵 Posture agent (firewall on, disk encrypted…) → `/v1/posture` every 60 s over mTLS
+- [x] 🔵 Posture agent (firewall on, managed marker…) → `/v1/posture` every 60 s over mTLS **through the tunnel** (PDP logs `caller 10.8.0.10`, score 1.0); NAT isolation leak found and closed (`unreachable 10.10.0.0/16` guard)
 - [ ] 🔴 Run **S12** (stolen cert used from the Kali laptop)
 - [ ] 🔵 `[EXT]` Keycloak OIDC + MFA (TOTP) in front of the app
 
@@ -114,7 +117,7 @@ Models (6 → 20 Dec) — train on the RTX 5050
 
 ## 9. Monitoring: Suricata + Wazuh — 13 → 23 Dec · milestone M6 `[MVP]`
 
-- [ ] 🔵 Suricata 7 on the sensor + local rules
+  - [ ] 🔵 Suricata 7 on the sensor + local rules
 - [ ] 🔵 Wazuh all-in-one, agents on gw / pdp / ai / proxy / sub-ca
 - [ ] 🔵 Collect logs: Suricata `eve.json`, OpenVPN, nftables, PDP, AI, Nginx, PKI
 - [ ] 🔵 Correlation rules `zt_rules.xml`

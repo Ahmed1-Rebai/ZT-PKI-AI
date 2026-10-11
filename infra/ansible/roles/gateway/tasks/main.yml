@@ -70,10 +70,31 @@
     label: "{{ item.dest }}"
   notify: restart openvpn
 
-- name: Generate the shared tls-crypt key (idempotent)
+# tls-crypt key: the staged copy (vpn/server/ta.key) is the source of truth, so
+# a rebuilt gateway keeps the key already embedded in client profiles. A key is
+# generated only on first deployment, then fetched by vpn/scripts/sync-pki.sh.
+- name: Check for a staged tls-crypt key (on the control node)
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/vpn/server/ta.key"
+  delegate_to: localhost
+  become: false
+  register: zt_staged_ta
+
+- name: Deploy the staged tls-crypt key
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/server/ta.key"
+    dest: /etc/openvpn/server/ta.key
+    owner: root
+    group: root
+    mode: "0600"
+  when: zt_staged_ta.stat.exists
+  notify: restart openvpn
+
+- name: Generate the tls-crypt key (first deployment only)
   ansible.builtin.command:
     cmd: openvpn --genkey secret /etc/openvpn/server/ta.key
     creates: /etc/openvpn/server/ta.key
+  when: not zt_staged_ta.stat.exists
   notify: restart openvpn
 
 # --- Zero Trust hooks ------------------------------------------------------

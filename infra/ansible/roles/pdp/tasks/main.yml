@@ -103,6 +103,24 @@
     mode: "0600"
   notify: restart zt pdp
 
+# Pin the gateway's SSH host key so the enforcer runs with
+# StrictHostKeyChecking=yes (no trust-on-every-call, no impostor gateway).
+# Collected over the mgmt network at provisioning time.
+- name: Read the gateway SSH host key
+  ansible.builtin.command: ssh-keyscan -t ed25519 -T 5 {{ gw_mgmt_ip }}
+  register: zt_gw_hostkey
+  changed_when: false
+  failed_when: zt_gw_hostkey.stdout | length == 0
+
+- name: Pin the gateway host key for the PDP enforcer
+  ansible.builtin.copy:
+    dest: /etc/zt-pdp/ssh/known_hosts
+    content: "{{ zt_gw_hostkey.stdout }}\n"
+    owner: "10001"
+    group: "10001"
+    mode: "0644"
+  notify: restart zt pdp
+
 - name: Enable Docker
   ansible.builtin.systemd:
     name: docker

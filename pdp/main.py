@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import redis
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from audit import configure, emit
@@ -44,6 +44,15 @@ class EventRequest(BaseModel):
     source: str = Field(min_length=1, max_length=64)
     critical: bool = False
     detail: dict[str, Any] = Field(default_factory=dict)
+
+
+def _in_networks(ip: str, networks: str) -> bool:
+    """True if ip belongs to one of the comma-separated CIDRs."""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(addr in ipaddress.ip_network(n.strip()) for n in networks.split(",") if n.strip())
 
 
 def _serial(value: str) -> str:
@@ -101,7 +110,8 @@ def build_app(store: Store | None = None, policy: Any | None = None,
             app.state.store.load_users(directory)
             emit("directory_loaded", users=sorted(directory))
         app.state.policy = policy or OpaPolicy(cfg.opa_url)
-        app.state.enforcer = enforcer or GatewayEnforcer(cfg.gateway_host, cfg.gateway_user, cfg.gateway_key, cfg.dry_run)
+        app.state.enforcer = enforcer or GatewayEnforcer(cfg.gateway_host, cfg.gateway_user, cfg.gateway_key,
+                                                         cfg.dry_run, cfg.gateway_known_hosts)
         task = asyncio.create_task(renewal_loop(app))
         try:
             yield
@@ -114,6 +124,15 @@ def build_app(store: Store | None = None, policy: Any | None = None,
 
     def state() -> tuple[Store, Any, Any]:
         return app.state.store, app.state.policy, app.state.enforcer
+
+    def require_service(request: Request) -> None:
+        """Control endpoints are for the gateway hooks and the AI engine (mgmt)."""
+        caller = request.client.host if request.client else ""
+        if not _in_networks(caller, cfg.service_networks):
+            emit("caller_denied", caller=caller, path=request.url.path)
+            raise HTTPException(403, "caller not allowed")
+
+    service = [Depends(require_service)]
 
     def evaluate(cn: str, serial: str, critical: bool = False) -> tuple[dict[str, Any] | None, float, dict[str, Any]]:
         repo, opa, _ = state()
@@ -138,7 +157,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.post("/v1/authenticate")
+    @app.post("/v1/authenticate", dependencies=service)
     def authenticate(req: AuthRequest) -> dict[str, Any]:
         user, score, decision = evaluate(req.cn, req.serial)
         allow = bool(decision.get("allow", False))
@@ -147,7 +166,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
              tier=decision.get("tier"), decision="allow" if allow else "deny", reason=reason)
         return {"decision": "allow" if allow else "deny", "score": score, "tier": decision.get("tier", "revoke"), "reason": reason}
 
-    @app.post("/v1/session/open")
+    @app.post("/v1/session/open", dependencies=service)
     def session_open(req: SessionRequest) -> dict[str, Any]:
         repo, _, gate = state()
         user, score, decision = evaluate(req.cn, req.serial)
@@ -168,7 +187,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
         return {"decision": "allow", "vpn_ip": vpn_ip, "score": score, "tier": tier,
                 "ttl": cfg.session_ttl_seconds}
 
-    @app.post("/v1/session/close")
+    @app.post("/v1/session/close", dependencies=service)
     def session_close(req: AuthRequest) -> dict[str, str]:
         repo, _, gate = state()
         session = repo.session(req.cn)
@@ -180,15 +199,26 @@ def build_app(store: Store | None = None, policy: Any | None = None,
         return {"decision": "closed"}
 
     @app.post("/v1/posture")
-    def posture(req: PostureRequest) -> dict[str, Any]:
+    def posture(req: PostureRequest, request: Request) -> dict[str, Any]:
         repo, _, _ = state()
+        caller = request.client.host if request.client else ""
+        if _in_networks(caller, cfg.client_networks):
+            # VPN client: identity is the CN pinned to its tunnel address, not a
+            # declared field — a client may only report its own posture.
+            bound = repo.user_by_ip(caller)
+            if bound != req.cn:
+                emit("posture_denied", caller=caller, claimed=req.cn, bound=bound)
+                raise HTTPException(403, "posture identity does not match the tunnel address")
+        elif not _in_networks(caller, cfg.service_networks):
+            emit("caller_denied", caller=caller, path=request.url.path)
+            raise HTTPException(403, "caller not allowed")
         if not repo.user(req.cn):
             raise HTTPException(404, "unknown identity")
         repo.set_posture(req.cn, req.score, req.detail)
-        emit("posture", cn=req.cn, score=req.score, detail=req.detail)
+        emit("posture", cn=req.cn, score=req.score, caller=caller, detail=req.detail)
         return {"decision": "recorded", "score": req.score}
 
-    @app.post("/v1/events")
+    @app.post("/v1/events", dependencies=service)
     def event(req: EventRequest) -> dict[str, Any]:
         repo, _, gate = state()
         if not repo.user(req.cn):
@@ -210,7 +240,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
              critical=req.critical, detail=req.detail)
         return {"score": score, "anomaly": anomaly, "tier": tier}
 
-    @app.post("/v1/session/{cn}/kill")
+    @app.post("/v1/session/{cn}/kill", dependencies=service)
     def kill(cn: str) -> dict[str, str]:
         repo, _, gate = state()
         session = repo.session(cn)
@@ -221,7 +251,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
         emit("session_kill", cn=cn, found=bool(session))
         return {"decision": "killed"}
 
-    @app.post("/v1/cert/{serial}/revoke")
+    @app.post("/v1/cert/{serial}/revoke", dependencies=service)
     def revoke(serial: str) -> dict[str, str]:
         repo, _, gate = state()
         serial = _serial(serial)
@@ -236,7 +266,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
         emit("certificate_revoke", serial=serial, crl_update="operator-required")
         return {"decision": "revoked", "crl_update": "operator-required"}
 
-    @app.get("/v1/sessions")
+    @app.get("/v1/sessions", dependencies=service)
     def sessions() -> dict[str, list[dict[str, Any]]]:
         repo, _, _ = state()
         return {"sessions": repo.sessions()}

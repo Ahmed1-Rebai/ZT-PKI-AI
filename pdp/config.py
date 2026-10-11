@@ -23,6 +23,8 @@ class Settings:
     gateway_host: str = os.getenv("ZT_GATEWAY_HOST", "10.10.99.1")
     gateway_user: str = os.getenv("ZT_GATEWAY_USER", "ztpdp")
     gateway_key: str = os.getenv("ZT_GATEWAY_KEY", "/run/secrets/gateway_ssh_key")
+    # Pinned gateway SSH host key (written by the pdp role); refuses an impostor.
+    gateway_known_hosts: str = os.getenv("ZT_GATEWAY_KNOWN_HOSTS", "/run/secrets/known_hosts")
     openvpn_management_host: str = os.getenv("ZT_OPENVPN_MANAGEMENT_HOST", "127.0.0.1")
     openvpn_management_port: int = int(os.getenv("ZT_OPENVPN_MANAGEMENT_PORT", "7505"))
     pki_revoke_command: str = os.getenv("ZT_PKI_REVOKE_COMMAND", "")

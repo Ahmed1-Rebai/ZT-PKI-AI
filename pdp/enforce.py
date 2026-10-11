@@ -21,11 +21,14 @@ class GatewayEnforcer:
     user: str
     key: str
     dry_run: bool = False
+    known_hosts: str = ""  # pinned gateway host key; empty = OpenSSH default
 
     def _run(self, *args: str) -> None:
         if self.dry_run:
             return
-        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", "-i", self.key,
+        pin = (["-o", f"UserKnownHostsFile={self.known_hosts}", "-o", "StrictHostKeyChecking=yes"]
+               if self.known_hosts else [])
+        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", *pin, "-i", self.key,
                f"{self.user}@{self.host}", "sudo", "/usr/local/sbin/ztpdp-nft", *args]
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=8)
 
