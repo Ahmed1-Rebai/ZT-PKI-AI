@@ -1,0 +1,57 @@
+---
+# Role: wazuh_agent — ship ZT logs to the SIEM and watch critical files (docs/08 §4.2).
+
+- name: rsyslog on the gateway (kernel log file for nftables drops)
+  ansible.builtin.apt:
+    name: rsyslog
+    state: present
+  when: "'gateway' in group_names"
+
+- name: Wazuh repository key
+  ansible.builtin.shell: |
+    curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+  args:
+    creates: /usr/share/keyrings/wazuh.gpg
+
+- name: Wazuh repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/{{ zt_wazuh_series }}/apt/ stable main"
+    filename: wazuh
+    state: present
+
+- name: Install the Wazuh agent (enrols with the manager on first start)
+  ansible.builtin.apt:
+    name: "wazuh-agent={{ zt_wazuh_agent_version }}"
+    state: present
+    update_cache: true
+  environment:
+    WAZUH_MANAGER: "{{ zt_wazuh_manager }}"
+    WAZUH_AGENT_NAME: "{{ inventory_hostname }}"
+
+- name: Compute this host's log sources and watched paths
+  ansible.builtin.set_fact:
+    zt_logs: "{{ group_names | map('extract', zt_wazuh_logs) | select('defined') | flatten }}"
+    zt_fim: "{{ group_names | map('extract', zt_wazuh_fim) | select('defined') | flatten }}"
+
+- name: ZT log collection and FIM
+  ansible.builtin.blockinfile:
+    path: /var/ossec/etc/ossec.conf
+    marker: "<!-- {mark} ZT-PKI-AI -->"
+    block: |
+      <ossec_config>
+      {% for l in zt_logs %}
+        <localfile><log_format>{{ l.format }}</log_format><location>{{ l.path }}</location></localfile>
+      {% endfor %}
+      {% if zt_fim %}
+        <syscheck>
+          <directories check_all="yes" realtime="yes" report_changes="yes">{{ zt_fim | join(',') }}</directories>
+        </syscheck>
+      {% endif %}
+      </ossec_config>
+  notify: restart wazuh-agent
+
+- name: Enable the agent
+  ansible.builtin.systemd:
+    name: wazuh-agent
+    enabled: true
+    state: started

@@ -95,7 +95,7 @@ Data (22 Nov → 6 Dec)
 - [ ] 🔵 Benign traffic generator `tests/traffic_benign.py` (browsing, API, SSH, transfers)
 - [ ] 🔴 **Malicious traffic campaigns** for the dataset (nmap, hydra, hping3, exfil, DNS tunnel), with a log of timestamps + IPs for labelling
 - [ ] 🔵 Capture with NFStream / pcap, label by timestamp + IP
-
++
 Models (6 → 20 Dec) — train on the RTX 5050
 - [x] 🔵 Flow features: 47-feature canonical schema shared by CICFlowMeter and NFStream (`ai/schema.py`, 6 tests) — UEBA 60 s windows need timestamps/IPs → lab captures (E3)
 - [x] 🔵 Isolation Forest + Random Forest baseline `ai/train.py` (dedupe 850k duplicates, leakage-safe train/val/test)
@@ -118,10 +118,10 @@ Models (6 → 20 Dec) — train on the RTX 5050
 
 ## 9. Monitoring: Suricata + Wazuh — 13 → 23 Dec · milestone M6 `[MVP]`
 
-  - [ ] 🔵 Suricata 7 on the sensor + local rules
-- [ ] 🔵 Wazuh all-in-one, agents on gw / pdp / ai / proxy / sub-ca
-- [ ] 🔵 Collect logs: Suricata `eve.json`, OpenVPN, nftables, PDP, AI, Nginx, PKI
-- [ ] 🔵 Correlation rules `zt_rules.xml`
+- [x] 🔵 Suricata 7 (bookworm-backports) on the sensor mirror NIC: **46,307 rules** (ET Open + ZT local), `HOME_NET` = lab zones + VPN pool; IDS self-test rule (sid 9000099) proves mirror → Suricata → Wazuh
+- [x] 🔵 Wazuh **4.14.8** all-in-one on siem; agents (pinned 4.14.8) on zt-gw, zt-pdp, zt-sensor (AI), sub-ca, web-proxy — all **Active**
+- [x] 🔵 Logs: Suricata `eve.json`, AI events, PDP audit (now written to a file), OpenVPN, nftables drops (`kern.log` via rsyslog), Nginx; FIM on firewall/VPN/PKI/policies/models. Fixed: Wazuh dropped all eve events (`decoder_order_size`=1024)
+- [x] 🔵 Correlation rules `siem/rules/zt_rules.xml` (100100–100161, MITRE-mapped) — verified live: 100103 revoke (logtest), **100105** unauthorised PDP call from 10.8.0.10, **100161** FIM on `/etc/openvpn`, 86601 Suricata alert
 - [ ] 🔵 Dashboards: Zero Trust, PKI, network, AI, incident timeline
 - [ ] 🔴 Run **S15** (tamper `nftables.conf` → FIM alert)
 - [ ] 🔵 `[EXT]` active response / SOAR (TheHive, n8n)

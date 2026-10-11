@@ -65,3 +65,9 @@
   hosts: client
   become: true
   roles: [client]
+
+# SIEM agents (M6): ship ZT logs + FIM to Wazuh on siem (10.10.99.20).
+- name: Wazuh agents
+  hosts: gateway:pdp:sensor:ca_sub:proxy
+  become: true
+  roles: [wazuh_agent]

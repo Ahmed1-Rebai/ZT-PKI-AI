@@ -99,6 +99,14 @@
   changed_when: false
   failed_when: zt_capture_if.stdout | length == 0
 
+- name: Create the AI event log directory
+  ansible.builtin.file:
+    path: /var/log/zt-ai
+    state: directory
+    owner: "{{ zt_ai_user }}"
+    group: "{{ zt_ai_user }}"
+    mode: "0750"
+
 - name: Install the scoring service
   ansible.builtin.copy:
     dest: /etc/systemd/system/zt-ai.service
@@ -116,6 +124,9 @@
       Environment=ZT_CAPTURE_IF={{ zt_capture_if.stdout }}
       Environment=ZT_PDP_URL=https://{{ pdp_ip }}:8443
       ExecStart={{ zt_ai_dir }}/.venv/bin/python {{ zt_ai_dir }}/serve.py
+      # JSON events -> file collected by the Wazuh agent (opened by systemd)
+      StandardOutput=append:/var/log/zt-ai/events.jsonl
+      StandardError=journal
       # Packet capture only; no root.
       AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
       CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
@@ -136,3 +147,74 @@
     enabled: true
     state: started
     daemon_reload: true
+
+# --- Suricata 7 IDS on the mirror (M6 · docs/08 §3) -------------------------
+
+- name: Enable bookworm-backports (Suricata 7)
+  ansible.builtin.apt_repository:
+    repo: "deb http://deb.debian.org/debian bookworm-backports main"
+    filename: backports
+    state: present
+
+- name: Install Suricata 7 and the rule updater
+  ansible.builtin.apt:
+    name: [suricata, suricata-update]
+    default_release: bookworm-backports
+    state: present
+    update_cache: true
+
+- name: Deploy ZT local rules
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/sensor/local.rules"
+    dest: /var/lib/suricata/rules/local.rules
+    mode: "0644"
+  notify: restart suricata
+
+- name: Deploy ZT overrides (HOME_NET, mirror interface, rule files)
+  ansible.builtin.copy:
+    dest: /etc/suricata/zt.yaml
+    mode: "0644"
+    content: |
+      %YAML 1.1
+      ---
+      af-packet:
+        - interface: {{ zt_capture_if.stdout }}
+          cluster-id: 99
+          cluster-type: cluster_flow
+          defrag: yes
+      default-rule-path: /var/lib/suricata/rules
+      rule-files:
+        - suricata.rules
+        - local.rules
+  notify: restart suricata
+
+# HOME_NET is set in place: an included `vars:` map would replace the whole
+# section and drop the default port groups the ET rules rely on.
+- name: Set HOME_NET to the lab zones and VPN pool
+  ansible.builtin.replace:
+    path: /etc/suricata/suricata.yaml
+    regexp: '^(\s*)HOME_NET:.*$'
+    replace: '\1HOME_NET: "[10.8.0.0/24,10.10.0.0/16,192.168.100.0/24]"'
+  notify: restart suricata
+
+- name: Include the ZT overrides from suricata.yaml
+  ansible.builtin.lineinfile:
+    path: /etc/suricata/suricata.yaml
+    line: "include: zt.yaml"
+  notify: restart suricata
+
+- name: Fetch Emerging Threats Open rules (suricata-update)
+  ansible.builtin.command: suricata-update --no-test
+  args:
+    creates: /var/lib/suricata/rules/suricata.rules
+  notify: restart suricata
+
+- name: Validate the Suricata configuration
+  ansible.builtin.command: suricata -T -c /etc/suricata/suricata.yaml
+  changed_when: false
+
+- name: Enable Suricata
+  ansible.builtin.systemd:
+    name: suricata
+    enabled: true
+    state: started

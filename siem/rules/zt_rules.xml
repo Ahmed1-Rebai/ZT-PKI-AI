@@ -1,0 +1,116 @@
+<!--
+  ZT-PKI-AI Wazuh correlation rules (docs/08 §4.3), deployed to
+  /var/ossec/etc/rules/zt_rules.xml by the siem role.
+  Field names match the real JSON emitted by the PDP (pdp/audit.py) and the
+  AI engine (ai/serve.py); Suricata alerts use Wazuh's built-in rule 86601.
+-->
+<group name="zerotrust,">
+
+  <!-- PDP decisions (zt-pdp: /var/log/zt-pdp/audit.jsonl) -->
+  <rule id="100100" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="component">^pdp$</field>
+    <description>ZT PDP: $(event) for $(cn)</description>
+  </rule>
+
+  <rule id="100101" level="8">
+    <if_sid>100100</if_sid>
+    <field name="event">^rescore$</field>
+    <field name="tier">^restricted$</field>
+    <description>ZT: privileges REDUCED for $(cn) (trust score $(score), source $(source))</description>
+  </rule>
+
+  <rule id="100102" level="12">
+    <if_sid>100100</if_sid>
+    <field name="event">^rescore$</field>
+    <field name="tier">^quarantine$</field>
+    <description>ZT: $(cn) placed in QUARANTINE (trust score $(score))</description>
+    <mitre><id>T1078</id></mitre>
+  </rule>
+
+  <rule id="100103" level="14">
+    <if_sid>100100</if_sid>
+    <field name="event">^rescore$</field>
+    <field name="tier">^revoke$</field>
+    <description>ZT: access REVOKED for $(cn) (trust score $(score))</description>
+    <mitre><id>T1078</id></mitre>
+  </rule>
+
+  <rule id="100104" level="10">
+    <if_sid>100100</if_sid>
+    <field name="event">^authenticate$|^session_open$</field>
+    <field name="decision">^deny$</field>
+    <description>ZT: access DENIED to $(cn) ($(reason))</description>
+  </rule>
+
+  <rule id="100105" level="12">
+    <if_sid>100100</if_sid>
+    <field name="event">^caller_denied$|^posture_denied$</field>
+    <description>ZT: unauthorised call to the PDP ($(event) from $(caller))</description>
+    <mitre><id>T1078</id></mitre>
+  </rule>
+
+  <rule id="100106" level="12">
+    <if_sid>100100</if_sid>
+    <field name="event">^certificate_revoke$</field>
+    <description>ZT: certificate serial $(serial) revoked by the PDP</description>
+  </rule>
+
+  <rule id="100107" level="10">
+    <if_sid>100100</if_sid>
+    <field name="event">^enforcement_error$|^policy_error$|^ttl_renewal_error$</field>
+    <description>ZT: control-plane failure ($(event)) — access fails closed</description>
+  </rule>
+
+  <!-- AI engine (zt-sensor: /var/log/zt-ai/events.jsonl) -->
+  <rule id="100120" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="component">^ai$</field>
+    <description>ZT AI: $(event)</description>
+  </rule>
+
+  <rule id="100121" level="7">
+    <if_sid>100120</if_sid>
+    <field name="event">^report$</field>
+    <field name="critical">false</field>
+    <description>ZT AI: anomalous flows for $(cn) (anomaly $(anomaly), dst $(dst):$(port))</description>
+  </rule>
+
+  <rule id="100122" level="13">
+    <if_sid>100120</if_sid>
+    <field name="event">^report$</field>
+    <field name="critical">true</field>
+    <description>ZT AI: CRITICAL burst of attack flows from $(cn) (anomaly $(anomaly))</description>
+    <mitre><id>T1046</id></mitre>
+  </rule>
+
+  <!-- Suricata: ZT local signatures (sensor/local.rules, sid 9000001-9000004) -->
+  <rule id="100140" level="12">
+    <if_sid>86601</if_sid>
+    <field name="alert.signature_id">^900000\d$</field>
+    <description>ZT IDS: $(alert.signature) ($(src_ip) -> $(dest_ip))</description>
+  </rule>
+
+  <!-- Correlation: IDS signature and AI critical burst within 2 minutes -->
+  <rule id="100150" level="15" frequency="2" timeframe="120">
+    <if_matched_sid>86601</if_matched_sid>
+    <if_sid>100122</if_sid>
+    <description>ZT: probable compromised identity — IDS signature AND AI critical anomaly</description>
+    <mitre><id>T1078</id><id>T1046</id></mitre>
+  </rule>
+
+  <!-- File integrity on the PEP and the PKI (S15) -->
+  <rule id="100160" level="13">
+    <if_sid>550,553,554</if_sid>
+    <field name="file">/etc/nftables</field>
+    <description>ZT: gateway firewall policy changed ($(file))</description>
+    <mitre><id>T1562.004</id></mitre>
+  </rule>
+
+  <rule id="100161" level="12">
+    <if_sid>550,553,554</if_sid>
+    <field name="file">/etc/openvpn|/home/vagrant/pki</field>
+    <description>ZT: VPN or PKI configuration changed ($(file))</description>
+  </rule>
+
+</group>

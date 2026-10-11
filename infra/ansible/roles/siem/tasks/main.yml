@@ -1,11 +1,57 @@
 ---
-# Role: siem
-# M6 · docs/08 §4 — Wazuh all-in-one. Collect Suricata/OpenVPN/nftables/PDP/AI logs, correlation rules, dashboards.
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: siem — Wazuh all-in-one (indexer + manager + dashboard), docs/08 §4.
+# Lab sizing: 6 GB RAM (Wazuh recommends 8), so the installer's requirement
+# check is skipped with -i. Generated passwords stay on the VM
+# (/root/wazuh-install-files.tar), never in the repo.
 
-- name: siem role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (siem): M6 · docs/08 §4 — Wazuh all-in-one. Collect Suricata/OpenVPN/nftables/PDP/AI logs, correlation rules, dashboards."
+- name: Static routes via the gateway (replies to agents in other zones)
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
+
+- name: Check whether Wazuh is already installed
+  ansible.builtin.stat:
+    path: /var/ossec/bin/wazuh-control
+  register: zt_wazuh
+
+- name: Download the Wazuh installer
+  ansible.builtin.get_url:
+    url: "https://packages.wazuh.com/{{ zt_wazuh_series }}/wazuh-install.sh"
+    dest: /root/wazuh-install.sh
+    mode: "0700"
+  when: not zt_wazuh.stat.exists
+
+- name: Install Wazuh all-in-one (takes ~10-15 min)
+  ansible.builtin.command:
+    cmd: bash /root/wazuh-install.sh -a -i
+    chdir: /root
+    creates: /var/ossec/bin/wazuh-control
+  async: 2400
+  poll: 30
+
+# Suricata eve.json events (alerts with ET metadata) exceed the default 256
+# decoded fields and are dropped ("Too many fields for JSON decoder").
+- name: Raise the JSON decoder field limit for Suricata eve events
+  ansible.builtin.lineinfile:
+    path: /var/ossec/etc/local_internal_options.conf
+    regexp: '^analysisd.decoder_order_size='
+    line: analysisd.decoder_order_size=1024
+    create: true
+    owner: root
+    group: wazuh
+    mode: "0640"
+  notify: restart wazuh-manager
+
+- name: Deploy ZT correlation rules
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/siem/rules/zt_rules.xml"
+    dest: /var/ossec/etc/rules/zt_rules.xml
+    owner: wazuh
+    group: wazuh
+    mode: "0660"
+  notify: restart wazuh-manager
+
+- name: Wazuh services running
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: [wazuh-indexer, wazuh-manager, wazuh-dashboard]

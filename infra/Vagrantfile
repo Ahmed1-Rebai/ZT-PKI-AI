@@ -32,7 +32,7 @@ NODES = {
   "zt-pdp"    => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-mgmt","10.10.99.10"]],     group: "pdp" },
   # zt-mirror: dedicated internal net; the gateway copies its zone NICs here
   # (tc mirred) and the sensor captures it in promiscuous mode (adapter 3).
-  "zt-sensor" => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-mgmt","10.10.99.12"],
+  "zt-sensor" => { box: BOX_DEB, cpus: 2, mem: 3072, nets: [["zt-mgmt","10.10.99.12"],
                                                             ["zt-mirror","10.10.98.12"]],   group: "sensor",
                    promisc: [3] },
   # NOTE: no zt-ai VM. The AI engine runs on the HOST to use the RTX 5050 GPU

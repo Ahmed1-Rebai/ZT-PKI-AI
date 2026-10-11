@@ -4,3 +4,8 @@
     name: zt-ai
     state: restarted
     daemon_reload: true
+
+- name: restart suricata
+  ansible.builtin.systemd:
+    name: suricata
+    state: restarted

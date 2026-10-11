@@ -1,0 +1,6 @@
+---
+zt_wazuh_series: "4.14"
+
+# Return path to agents outside mgmt (DMZ proxy) via the gateway.
+zt_routes:
+  - "10.10.10.10/32 via 10.10.99.1"

@@ -99,7 +99,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        configure()
+        configure(cfg.audit_log)
         if store is None:
             app.state.store = RedisStore(redis.from_url(cfg.redis_url, decode_responses=True))
             app.state.store.r.ping()  # fail the container health/start-up rather than bypass policy

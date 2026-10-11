@@ -1,0 +1,26 @@
+---
+zt_wazuh_manager: 10.10.99.20
+zt_wazuh_series: "4.x"
+# Agents must not be newer than the manager (siem runs 4.14.8).
+zt_wazuh_agent_version: "4.14.8-1"
+
+# What each host ships to the SIEM and which files it watches (FIM).
+# Keys are inventory groups; a host gets the entries of every group it is in.
+zt_wazuh_logs:
+  gateway:
+    - {format: syslog, path: /var/log/openvpn/openvpn.log}
+    - {format: syslog, path: /var/log/kern.log}          # nftables ZT-DROP / ZT-QUAR
+  pdp:
+    - {format: json, path: /var/log/zt-pdp/audit.jsonl}
+  sensor:
+    - {format: json, path: /var/log/suricata/eve.json}
+    - {format: json, path: /var/log/zt-ai/events.jsonl}
+  proxy:
+    - {format: syslog, path: /var/log/nginx/zt-proxy.access.log}
+    - {format: syslog, path: /var/log/nginx/zt-proxy.error.log}
+zt_wazuh_fim:
+  gateway: [/etc/openvpn, /etc/nftables.conf, /etc/nftables.d]
+  pdp: [/opt/zt-pdp/app/policies]
+  sensor: [/opt/zt-ai/models, /etc/suricata]
+  ca_sub: [/home/vagrant/pki/sub/index.txt, /home/vagrant/pki/sub/certs]
+  proxy: [/etc/nginx]

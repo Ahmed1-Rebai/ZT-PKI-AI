@@ -104,3 +104,16 @@ def test_unknown_network_is_refused():
     with outsider:
         assert outsider.post("/v1/posture", json={"cn": "alice@lab.local", "score": 1}).status_code == 403
         assert outsider.post("/v1/authenticate", json={"cn": "alice@lab.local", "serial": "20"}).status_code == 403
+
+
+def test_decisions_are_written_to_the_audit_file(tmp_path):
+    """Wazuh tails this file on zt-pdp (docs/08 §4.2)."""
+    import json as _json
+    log = tmp_path / "audit.jsonl"
+    users = {"alice@lab.local": {"role": "employee", "vpn_ip": "10.8.0.10"}}
+    app = build_app(MemoryStore(users), Policy(), Gate(),
+                    replace(settings, session_ttl_seconds=60, audit_log=str(log)))
+    with TestClient(as_caller(app, "10.10.99.1")) as c:
+        c.post("/v1/authenticate", json={"cn": "alice@lab.local", "serial": "20"})
+    events = [_json.loads(line)["event"] for line in log.read_text().splitlines()]
+    assert "authenticate" in events
