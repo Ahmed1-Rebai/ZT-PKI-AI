@@ -265,3 +265,65 @@
     name: openvpn-server@server
     enabled: true
     state: started
+
+# --- Traffic mirror for the sensor (M5 · docs/08 §3) -----------------------
+# VirtualBox has no switch port mirroring: copy the server-side zone NICs
+# (dmz, app, data, mgmt) onto the dedicated zt-mirror NIC with tc mirred.
+# Client traffic there is already decrypted and keeps its tunnel source IP
+# (no NAT), so the sensor can attribute every flow to an identity.
+
+- name: Install the mirror script
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/sensor/mirror.sh"
+    dest: /usr/local/sbin/zt-mirror.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Resolve zone and mirror interfaces by address
+  ansible.builtin.shell: |
+    set -e
+    ifc() { ip -o -4 addr show | awk -v a="$1/" 'index($4, a) == 1 {print $2; exit}'; }
+    src=""
+    for a in 10.10.10.1 10.10.20.1 10.10.30.1 10.10.99.1; do src="$src $(ifc $a)"; done
+    echo "SRC_IFACES=\"$(echo $src)\""
+    echo "MIRROR_IF=$(ifc 10.10.98.1)"
+  args:
+    executable: /bin/bash
+  register: zt_mirror_env
+  changed_when: false
+  failed_when: "'MIRROR_IF=' not in zt_mirror_env.stdout or zt_mirror_env.stdout is search('MIRROR_IF=$')"
+
+- name: Write mirror configuration
+  ansible.builtin.copy:
+    dest: /etc/default/zt-mirror
+    content: "{{ zt_mirror_env.stdout }}\n"
+    mode: "0644"
+  register: zt_mirror_conf
+
+- name: Install the mirror unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/zt-mirror.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=ZT traffic mirror (zone NICs -> zt-mirror, for the sensor)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      EnvironmentFile=/etc/default/zt-mirror
+      ExecStart=/usr/local/sbin/zt-mirror.sh
+
+      [Install]
+      WantedBy=multi-user.target
+  register: zt_mirror_unit
+
+- name: Enable and (re)apply the mirror
+  ansible.builtin.systemd:
+    name: zt-mirror
+    enabled: true
+    daemon_reload: true
+    state: "{{ 'restarted' if (zt_mirror_conf.changed or zt_mirror_unit.changed) else 'started' }}"

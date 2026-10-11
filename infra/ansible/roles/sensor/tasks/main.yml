@@ -1,11 +1,138 @@
 ---
-# Role: sensor
-# M4/M6 · docs/08 §3 — Suricata 7 + NFStream. Receive mirrored traffic via tc mirred from zt-gw.
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: sensor — live anomaly scoring (M5 · docs/07 §8).
+# Captures the gateway's mirrored traffic (zt-mirror) with NFStream, scores
+# flows with the signed models trained on the host GPU, reports to the PDP.
 
-- name: sensor role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (sensor): M4/M6 · docs/08 §3 — Suricata 7 + NFStream. Receive mirrored traffic via tc mirred from zt-gw."
+- name: Install runtime packages
+  ansible.builtin.apt:
+    name: [python3-venv, python3-pip, libpcap0.8]
+    state: present
+    update_cache: true
+
+- name: Create the service account
+  ansible.builtin.user:
+    name: "{{ zt_ai_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Check trained models and AI identity exist (on the control node)
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/ai/{{ item }}"
+  delegate_to: localhost
+  become: false
+  register: zt_ai_material
+  loop: [models/manifest.json, models/baseline.joblib, models/ae.pt, certs/ai.crt, certs/ai.key, certs/ca-chain.crt]
+
+- name: Require models and identity
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing ai/{{ item.item }} — train (ai/train.py) and stage ai/certs first."
+  loop: "{{ zt_ai_material.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create AI directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ zt_ai_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ zt_ai_dir }}", mode: "0755"}
+    - {path: "{{ zt_ai_dir }}/models", mode: "0750"}
+    - {path: "{{ zt_ai_dir }}/certs", mode: "0750"}
+
+- name: Create the Python environment (recent pip avoids source builds)
+  ansible.builtin.pip:
+    name: [pip, wheel]
+    state: latest
+    virtualenv: "{{ zt_ai_dir }}/.venv"
+    virtualenv_command: python3 -m venv
+
+- name: Install torch (CPU build; other dependencies from PyPI)
+  ansible.builtin.pip:
+    name: "{{ zt_ai_torch }}"
+    virtualenv: "{{ zt_ai_dir }}/.venv"
+    extra_args: "--extra-index-url {{ zt_ai_torch_index }}"
+
+- name: Install pinned ML libraries
+  ansible.builtin.pip:
+    name: "{{ zt_ai_pip }}"
+    virtualenv: "{{ zt_ai_dir }}/.venv"
+
+- name: Deploy engine code
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/ai/{{ item }}"
+    dest: "{{ zt_ai_dir }}/{{ item }}"
+    mode: "0644"
+  loop: [schema.py, models.py, registry.py, scoring.py, pdp_client.py, serve.py]
+  notify: restart zt-ai
+
+- name: Deploy signed models (verified again at load)
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/ai/models/{{ item }}"
+    dest: "{{ zt_ai_dir }}/models/{{ item }}"
+    owner: root
+    group: "{{ zt_ai_user }}"
+    mode: "0640"
+  loop: [manifest.json, baseline.joblib, ae.pt]
+  notify: restart zt-ai
+
+- name: Deploy the AI mTLS identity
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/ai/certs/{{ item.f }}"
+    dest: "{{ zt_ai_dir }}/certs/{{ item.f }}"
+    owner: root
+    group: "{{ zt_ai_user }}"
+    mode: "{{ item.m }}"
+  loop:
+    - {f: ca-chain.crt, m: "0644"}
+    - {f: ai.crt, m: "0644"}
+    - {f: ai.key, m: "0640"}
+  notify: restart zt-ai
+
+- name: Resolve the capture interface from the zt-mirror address
+  ansible.builtin.shell: ip -o -4 addr show | awk -v a="{{ zt_mirror_ip }}/" 'index($4, a) == 1 {print $2; exit}'
+  register: zt_capture_if
+  changed_when: false
+  failed_when: zt_capture_if.stdout | length == 0
+
+- name: Install the scoring service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/zt-ai.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=ZT anomaly engine — live scoring of mirrored traffic
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User={{ zt_ai_user }}
+      Group={{ zt_ai_user }}
+      WorkingDirectory={{ zt_ai_dir }}
+      Environment=ZT_CAPTURE_IF={{ zt_capture_if.stdout }}
+      Environment=ZT_PDP_URL=https://{{ pdp_ip }}:8443
+      ExecStart={{ zt_ai_dir }}/.venv/bin/python {{ zt_ai_dir }}/serve.py
+      # Packet capture only; no root.
+      AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+      CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+      NoNewPrivileges=true
+      ProtectSystem=strict
+      ProtectHome=true
+      PrivateTmp=true
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: restart zt-ai
+
+- name: Enable the scoring service
+  ansible.builtin.systemd:
+    name: zt-ai
+    enabled: true
+    state: started
+    daemon_reload: true

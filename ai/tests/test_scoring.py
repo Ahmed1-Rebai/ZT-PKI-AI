@@ -35,3 +35,15 @@ def test_attacks_score_higher_than_benign(scored):
     attack = s.loc[sample.attack == 1, "anomaly"]
     assert benign.median() < 0.1 and attack.median() > 0.9
     assert (benign >= 0.5).mean() < 0.02        # FPR budget
+
+
+def test_live_path_scores_an_nfstream_flow():
+    """Regression: serve.py must convert NFStream attributes before scoring."""
+    import pandas as pd
+    from schema import _NFS, from_nfstream
+    from scoring import Scorer
+    row = {k: 0.0 for k in _NFS}
+    row.update({"bidirectional_duration_ms": 40.0, "src2dst_packets": 6, "dst2src_packets": 5,
+                "src2dst_bytes": 900, "dst2src_bytes": 4200, "dst_port": 443})
+    s = Scorer().score(from_nfstream(pd.DataFrame([row])))
+    assert 0.0 <= float(s["anomaly"].iloc[0]) <= 1.0

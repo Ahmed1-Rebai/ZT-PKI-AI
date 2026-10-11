@@ -1,0 +1,6 @@
+---
+- name: restart zt-ai
+  ansible.builtin.systemd:
+    name: zt-ai
+    state: restarted
+    daemon_reload: true

@@ -27,9 +27,14 @@ NODES = {
                                                             ["zt-dmz","10.10.10.1"],
                                                             ["zt-app","10.10.20.1"],
                                                             ["zt-data","10.10.30.1"],
-                                                            ["zt-mgmt","10.10.99.1"]],      group: "gateway" },
+                                                            ["zt-mgmt","10.10.99.1"],
+                                                            ["zt-mirror","10.10.98.1"]],    group: "gateway" },
   "zt-pdp"    => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-mgmt","10.10.99.10"]],     group: "pdp" },
-  "zt-sensor" => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-mgmt","10.10.99.12"]],     group: "sensor" },
+  # zt-mirror: dedicated internal net; the gateway copies its zone NICs here
+  # (tc mirred) and the sensor captures it in promiscuous mode (adapter 3).
+  "zt-sensor" => { box: BOX_DEB, cpus: 2, mem: 2048, nets: [["zt-mgmt","10.10.99.12"],
+                                                            ["zt-mirror","10.10.98.12"]],   group: "sensor",
+                   promisc: [3] },
   # NOTE: no zt-ai VM. The AI engine runs on the HOST to use the RTX 5050 GPU
   # (VirtualBox has no CUDA passthrough). The host sits on the mgmt network at
   # 10.10.99.2 — see README "AI on the host".
@@ -78,6 +83,9 @@ Vagrant.configure("2") do |config|
         # adapter ordering consistent so eth0=NAT survives.
         vb.default_nic_type = "virtio"
         vb.customize ["modifyvm", :id, "--groups", "/ZT-PKI-AI"]
+        (o[:promisc] || []).each do |n|
+          vb.customize ["modifyvm", :id, "--nicpromisc#{n}", "allow-all"]
+        end
       end
 
       # Let Vagrant generate the inventory (correct SSH creds over NAT) and just

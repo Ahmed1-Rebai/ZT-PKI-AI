@@ -1,0 +1,18 @@
+---
+zt_ai_dir: /opt/zt-ai
+zt_ai_user: ztai
+
+# Pinned to the versions that trained the models (sklearn/joblib pickles are
+# version-sensitive). CPU-only torch: inference does not need the GPU.
+zt_ai_pip:
+  - scikit-learn==1.9.1
+  - numpy==2.4.6
+  - pandas==3.0.6
+  - joblib==1.6.0
+  - scipy==1.17.1
+  - nfstream==6.6.0
+zt_ai_torch: torch==2.11.0+cpu      # +cpu exists only on the CPU index
+zt_ai_torch_index: https://download.pytorch.org/whl/cpu
+
+# Address of the zt-mirror adapter (capture interface is resolved from it).
+zt_mirror_ip: 10.10.98.12
