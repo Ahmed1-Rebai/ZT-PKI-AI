@@ -1,24 +1,41 @@
 # ai/
 
-Anomaly-detection pipeline: feature extraction, training, inference (see [docs/07](../docs/07-detection-ia.md)).
+Anomaly-detection engine (docs/07), milestone **M4**. Runs on the **host** (RTX 5050)
+— VirtualBox has no CUDA passthrough; the host sits on mgmt at `10.10.99.2`.
 
 ```
 ai/
-├── features.py       # NFStream flow features + 60 s UEBA window features
-├── train.py          # Isolation Forest + Random Forest baseline
-├── autoencoder.py    # PyTorch autoencoder (trained on benign traffic)
-├── serve.py          # inference service -> POST /v1/events to the PDP
-├── notebooks/        # EDA, evaluation, SHAP (E1-E3)
-└── models/           # trained artifacts (.joblib / .pt) -- NOT committed
+├── schema.py          # 47 canonical flow features — CICFlowMeter AND NFStream map onto them
+├── data.py            # CIC-IDS2017 loader: clean labels, families, dedupe, stratified split
+├── models.py          # preprocessing (log1p+std), GPU autoencoder, docs/07 §6 normalisations
+├── train.py           # train + evaluate (E1), SHAP, latency, signed manifest
+├── registry.py        # load models ONLY if SHA-256 matches the manifest
+├── reports/           # metrics.md (human) + metrics.json (raw)  — tracked
+├── models/            # baseline.joblib, ae.pt (git-ignored) + manifest.json (tracked)
+└── tests/             # schema + integrity tests
 ```
 
-Targets: F1 ≥ 0.95, FPR ≤ 2 %, inference < 50 ms/flow. Models are signed (SHA-256 verified at load).
+## Setup (once)
 
-## Runs on the host (GPU)
+```bash
+conda create -y -p ./.venv python=3.11
+./.venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cu128   # Blackwell needs cu128+
+./.venv/bin/pip install scikit-learn pandas numpy pyarrow shap joblib matplotlib nfstream pytest
+```
 
-This engine runs **natively on the Blue Team laptop**, not in a VM — VirtualBox
-has no CUDA passthrough, so the RTX 5050 is only reachable from the host. The host
-joins the lab's **mgmt** network at `10.10.99.2` (host-only), reaching the PDP
-(`https://10.10.99.10:8443/v1/events`) and the sensor. Training uses CUDA; the
-inference service is light. Set up with `make ai` from `infra/` (see
-[infra/README.md](../infra/README.md#ai-on-the-host)).
+Dataset: CIC-IDS2017 `MachineLearningCSV.zip` → `datasets/cic-ids2017/` (git-ignored).
+The official UNB link now requires registration; the Hugging Face mirror
+`bencorn/CICIDS2017` matches the published totals exactly (2,830,743 flows).
+
+## Run
+
+```bash
+./.venv/bin/python ai/train.py --quick   # smoke run (~1.5 min)
+./.venv/bin/python ai/train.py           # full run (~6 min: AE on GPU, RF on CPU)
+./.venv/bin/python -m pytest -q ai/tests
+```
+
+## Results (E1, CIC-IDS2017 test split) — details in [reports/metrics.md](reports/metrics.md)
+
+Served model (stacking fusion): **F1 0.9943 · FPR 0.16 % · ROC-AUC 0.9999 · 11.6 ms/flow**.
+All M4 targets met. CIC-IDS2017 is optimistic; the decisive test is **E2** on lab traffic.

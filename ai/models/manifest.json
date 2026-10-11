@@ -1,0 +1,15 @@
+{
+  "created": "2026-10-11T16:21:26Z",
+  "dataset": "CIC-IDS2017 MachineLearningCSV (2,830,743 flows, verified)",
+  "rows_unique": 1980363,
+  "quick": false,
+  "artifacts": {
+    "baseline.joblib": "97a7a327590256704b1f89930a9a958c9751d9df764fca45a5399561b3746660",
+    "ae.pt": "ecbdfb036021536d1655d15fb3a66b39abeef1cb643ec75b92e01390e68f9bd4"
+  },
+  "env": {
+    "python": "3.11.17",
+    "torch": "2.11.0+cu128",
+    "device": "cuda"
+  }
+}

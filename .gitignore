@@ -33,9 +33,11 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 
-# Models
+# Models (trained artefacts; the signed manifest.json is tracked)
 models/*.joblib
 models/*.pt
+ai/models/*.joblib
+ai/models/*.pt
 
 # VirtualBox
 *.vdi

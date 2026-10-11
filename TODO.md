@@ -91,19 +91,20 @@
 > set up with `make ai`.
 
 Data (22 Nov → 6 Dec)
-- [ ] 🔵 Download CIC-IDS2017 / UNSW-NB15 for pre-training and benchmark
+- [x] 🔵 CIC-IDS2017 downloaded and **verified** (2,830,743 flows / 2,273,097 benign, exact match) — HF mirror `bencorn/CICIDS2017` (official UNB link now needs registration); UNSW-NB15 optional
 - [ ] 🔵 Benign traffic generator `tests/traffic_benign.py` (browsing, API, SSH, transfers)
 - [ ] 🔴 **Malicious traffic campaigns** for the dataset (nmap, hydra, hping3, exfil, DNS tunnel), with a log of timestamps + IPs for labelling
 - [ ] 🔵 Capture with NFStream / pcap, label by timestamp + IP
 
 Models (6 → 20 Dec) — train on the RTX 5050
-- [ ] 🔵 Flow features + 60 s UEBA window features
-- [ ] 🔵 Isolation Forest + Random Forest baseline `ai/train.py`
-- [ ] 🔵 Autoencoder (PyTorch, GPU), threshold = p99.5 on benign validation
-- [ ] 🔵 Score fusion + calibration, SHAP top-3 features
-- [ ] 🔵 Experiments **E1** (model comparison), **E2** (domain shift), **E3** (UEBA gain) → notebooks + metrics report
-- [ ] 🔵 Targets: F1 ≥ 0.95, FPR ≤ 2 %, inference < 50 ms/flow
-- [ ] 🔵 Sign models (SHA-256 checked at load)
+- [x] 🔵 Flow features: 47-feature canonical schema shared by CICFlowMeter and NFStream (`ai/schema.py`, 6 tests) — UEBA 60 s windows need timestamps/IPs → lab captures (E3)
+- [x] 🔵 Isolation Forest + Random Forest baseline `ai/train.py` (dedupe 850k duplicates, leakage-safe train/val/test)
+- [x] 🔵 Autoencoder (PyTorch 2.11 cu128 on the RTX 5050), threshold = p99.5 on benign validation
+- [x] 🔵 Score fusion (docs/07 weights + stacking) + isotonic calibration; SHAP global ranking
+- [x] 🔵 **E1** model comparison done (IF 0.0035 / AE 0.66 / RF 0.994 / fusion 0.994 F1)
+- [ ] 👥 **E2** (CIC → lab domain shift) and **E3** (UEBA gain) — need lab captures (benign + 🔴 attack campaigns)
+- [x] 🔵 Targets met on CIC test split: **F1 0.9943, FPR 0.16 %, 11.6 ms/flow** ([ai/reports/metrics.md](ai/reports/metrics.md))
+- [x] 🔵 Sign models: `manifest.json` SHA-256, `ai/registry.py` refuses tampered/missing artefacts (tested)
 - [ ] 🔵 `[EXT]` LSTM, XGBoost / LightGBM, stacking
 
 ## 8. Closed loop AI → PDP → PEP — 6 → 20 Dec · milestone M5 `[MVP]`
