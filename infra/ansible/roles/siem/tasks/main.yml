@@ -55,3 +55,23 @@
     enabled: true
     state: started
   loop: [wazuh-indexer, wazuh-manager, wazuh-dashboard]
+
+# Dashboards as code (siem/dashboards): index pattern, ZT saved searches and
+# the overview dashboard. The import reads the admin password on the VM only.
+- name: Stage the ZT dashboards and the import script
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/siem/dashboards/{{ item.f }}"
+    dest: "/root/{{ item.f }}"
+    mode: "{{ item.m }}"
+  loop:
+    - {f: zt-dashboards.ndjson, m: "0600"}
+    - {f: import.sh, m: "0700"}
+  register: zt_dash
+
+- name: Import the ZT dashboards (retries while the dashboard starts)
+  ansible.builtin.command: bash /root/import.sh /root/zt-dashboards.ndjson
+  register: zt_dash_import
+  until: "'success: True' in zt_dash_import.stdout"
+  retries: 10
+  delay: 15
+  when: zt_dash.changed

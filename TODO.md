@@ -122,7 +122,7 @@ Models (6 → 20 Dec) — train on the RTX 5050
 - [x] 🔵 Wazuh **4.14.8** all-in-one on siem; agents (pinned 4.14.8) on zt-gw, zt-pdp, zt-sensor (AI), sub-ca, web-proxy — all **Active**
 - [x] 🔵 Logs: Suricata `eve.json`, AI events, PDP audit (now written to a file), OpenVPN, nftables drops (`kern.log` via rsyslog), Nginx; FIM on firewall/VPN/PKI/policies/models. Fixed: Wazuh dropped all eve events (`decoder_order_size`=1024)
 - [x] 🔵 Correlation rules `siem/rules/zt_rules.xml` (100100–100161, MITRE-mapped) — verified live: 100103 revoke (logtest), **100105** unauthorised PDP call from 10.8.0.10, **100161** FIM on `/etc/openvpn`, 86601 Suricata alert
-- [ ] 🔵 Dashboards: Zero Trust, PKI, network, AI, incident timeline
+- [x] 🔵 Dashboards as code (`siem/dashboards/`): **ZT-PKI-AI – Zero Trust overview** + 5 saved searches (incident timeline, PDP decisions, PKI, network/IDS+firewall, AI); imported by the siem role (index pattern included). Live data: 55 PDP decisions, 3 incidents, 8 IDS alerts, 6 agents
 - [ ] 🔴 Run **S15** (tamper `nftables.conf` → FIM alert)
 - [ ] 🔵 `[EXT]` active response / SOAR (TheHive, n8n)
 
