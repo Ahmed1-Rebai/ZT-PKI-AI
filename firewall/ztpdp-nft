@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Restricted gateway helper for the PDP service.  Installed root-owned and run
+# only through sudo by the unprivileged `ztpdp` account; it never evaluates a
+# caller-provided shell expression.
+set -euo pipefail
+
+usage() { echo "usage: ztpdp-nft {allow|quarantine|clear|kill} ..." >&2; exit 64; }
+valid_ip() { [[ "$1" =~ ^10\.8\.0\.(1?[0-9]{1,2}|2[0-4][0-9]|25[0-4])$ ]]; }
+valid_ttl() { [[ "$1" == "10m" || "$1" == "2m" || "$1" == "30m" ]]; }
+delete() { nft delete element inet zt "$1" "{ $2 }" 2>/dev/null || true; }
+clear() { delete allow_web "$1"; delete allow_ssh "$1"; delete quarantine "$1"; delete allow_remed "$1"; }
+
+case "${1:-}" in
+  allow)
+    [[ $# == 4 ]] && valid_ip "$2" && [[ "$3" =~ ^(employee|admin|contractor)$ ]] && valid_ttl "$4" || usage
+    clear "$2"
+    nft add element inet zt allow_web "{ $2 timeout $4 }"
+    # SSH is an admin privilege only at the full-trust (10 minute) tier.
+    if [[ "$3" == "admin" && "$4" == "10m" ]]; then nft add element inet zt allow_ssh "{ $2 timeout $4 }"; fi
+    ;;
+  quarantine)
+    [[ $# == 3 ]] && valid_ip "$2" && [[ "$3" == "30m" ]] || usage
+    clear "$2"; nft add element inet zt quarantine "{ $2 timeout $3 }"
+    ;;
+  clear)
+    [[ $# == 2 ]] && valid_ip "$2" || usage; clear "$2"
+    ;;
+  kill)
+    [[ $# == 2 ]] && [[ "$2" =~ ^[A-Za-z0-9._@-]{1,128}$ ]] || usage
+    printf 'kill %s\n' "$2" | nc -w 1 127.0.0.1 7505
+    ;;
+  *) usage ;;
+esac

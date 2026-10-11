@@ -60,13 +60,13 @@
 
 ## 5. Zero Trust engine: PDP / PEP — 22 Nov → 6 Dec · milestone M3 `[MVP]`
 
-- [ ] 🔵 Docker Compose: Redis + OPA + PDP (mTLS) — `infra/docker-compose.yml`
-- [ ] 🔵 Rego policy `authz.rego` + `data.json` (roles employee / admin / contractor / quarantine) + `opa test`
-- [ ] 🔵 Trust score `trust.py` (weights 0.30 / 0.25 / 0.15 / 0.30, EMA, floor rule) + pytest
-- [ ] 🔵 FastAPI endpoints: `/authenticate`, `/session/open|close`, `/posture`, `/events`, `/session/{cn}/kill`, `/cert/{serial}/revoke`, `/sessions`
-- [ ] 🔵 Dynamic nftables ruleset (sets with timeout) + `enforce.py` (open / restrict / quarantine / revoke)
-- [ ] 🔵 TTL renewal loop (continuous re-authorization)
-- [ ] 🔵 JSON audit log for every decision
+- [x] 🔵 Docker Compose: Redis + OPA + PDP (mTLS) — `infra/docker-compose.yml`
+- [x] 🔵 Rego policy `authz.rego` + `data.json` (roles employee / admin / contractor / quarantine) + `opa test`
+- [x] 🔵 Trust score `trust.py` (weights 0.30 / 0.25 / 0.15 / 0.30, EMA, floor rule) + pytest
+- [x] 🔵 FastAPI endpoints: `/authenticate`, `/session/open|close`, `/posture`, `/events`, `/session/{cn}/kill`, `/cert/{serial}/revoke`, `/sessions`
+- [x] 🔵 Dynamic nftables ruleset (sets with timeout) + `enforce.py` (open / restrict / quarantine / revoke)
+- [x] 🔵 TTL renewal loop (continuous re-authorization)
+- [x] 🔵 JSON audit log for every decision
 - [ ] 🔴 Run **S7** (out-of-role SSH → `ZT-DROP`)
 - [ ] 👥 PDP tests table ([docs/06 §10](docs/06-zero-trust-pdp-pep.md))
 - [ ] 🔵 Snapshot `pdp-ok`

@@ -106,6 +106,103 @@
     dest: /etc/openvpn/zt/ip-map.csv
     mode: "0644"
 
+# M3: the PDP is on a separate VM, so it receives a deliberately restricted
+# SSH identity rather than a general root shell on the PEP.
+- name: Create the restricted PDP gateway account
+  ansible.builtin.user:
+    name: ztpdp
+    system: true
+    # Its key has a forced command below; nologin would also reject SSH exec.
+    shell: /bin/sh
+    create_home: true
+
+- name: Install the restricted PDP nftables helper
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/firewall/ztpdp-nft"
+    dest: /usr/local/sbin/ztpdp-nft
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the forced SSH command for the PDP key
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/firewall/ztpdp-ssh"
+    dest: /usr/local/sbin/ztpdp-ssh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Permit the PDP helper only (no interactive sudo)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/ztpdp-nft
+    content: "ztpdp ALL=(root) NOPASSWD: /usr/local/sbin/ztpdp-nft *\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Check staged PDP gateway public key exists when enforcement is enabled
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/pdp/ssh/id_ed25519.pub"
+  delegate_to: localhost
+  become: false
+  register: zt_pdp_gateway_pubkey
+  when: vpn_pdp_enforce | string == '1'
+
+- name: Create the restricted PDP SSH directory
+  ansible.builtin.file:
+    path: /home/ztpdp/.ssh
+    state: directory
+    owner: ztpdp
+    group: ztpdp
+    mode: "0700"
+  when: vpn_pdp_enforce | string == '1'
+
+- name: Authorize the PDP restricted key when enforcement is enabled
+  ansible.builtin.lineinfile:
+    path: /home/ztpdp/.ssh/authorized_keys
+    line: "command=\"/usr/local/sbin/ztpdp-ssh\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty {{ lookup('file', zt_repo_root + '/pdp/ssh/id_ed25519.pub') }}"
+    create: true
+    owner: ztpdp
+    group: ztpdp
+    mode: "0600"
+  when:
+    - vpn_pdp_enforce | string == '1'
+    - zt_pdp_gateway_pubkey.stat.exists
+
+- name: Check staged gateway mTLS material exists when enforcement is enabled
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/pdp/certs/{{ item }}"
+  delegate_to: localhost
+  become: false
+  register: zt_gateway_pdp_mtls
+  loop: [ca-chain.crt, gw-client.crt, gw-client.key]
+  when: vpn_pdp_enforce | string == '1'
+
+- name: Require gateway mTLS material when enforcement is enabled
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing pdp/certs/{{ item.item }}. Run pdp/scripts/sync-pki.sh after issuing gw-client."
+  loop: "{{ zt_gateway_pdp_mtls.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: vpn_pdp_enforce | string == '1'
+
+- name: Deploy gateway mTLS material for PDP calls
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/pdp/certs/{{ item.src }}"
+    dest: "/etc/openvpn/hooks/{{ item.dest }}"
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {src: ca-chain.crt, dest: ca-chain.crt, group: root, mode: '0644'}
+    - {src: gw-client.crt, dest: gw-client.crt, group: root, mode: '0644'}
+    # OpenVPN hooks run as nobody:nogroup; do not make the client key world-readable.
+    - {src: gw-client.key, dest: gw-client.key, group: nogroup, mode: '0640'}
+  when: vpn_pdp_enforce | string == '1'
+  notify: restart openvpn
+
 # --- Routing + firewall ----------------------------------------------------
 
 - name: Enable IP forwarding (gateway routes between zones)

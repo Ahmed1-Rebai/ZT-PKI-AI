@@ -1,0 +1,38 @@
+# M3 control plane.  Deploy on zt-pdp via its Ansible role; do not run this
+# from a developer workstation because /etc/zt-pdp/certs contains lab keys.
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    volumes: ["redis-data:/data"]
+    networks: ["control"]
+
+  opa:
+    image: openpolicyagent/opa:0.70.0-static
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policies/authz.rego", "/policies/data.json"]
+    restart: unless-stopped
+    volumes:
+      - /opt/zt-pdp/app/policies:/policies:ro
+    networks: ["control"]
+
+  pdp:
+    build:
+      context: /opt/zt-pdp/app
+    env_file: /etc/zt-pdp/pdp.env
+    restart: unless-stopped
+    depends_on: [redis, opa]
+    ports:
+      - "10.10.99.10:8443:8443"
+    volumes:
+      - /etc/zt-pdp/certs:/run/certs:ro
+      - /etc/zt-pdp/ssh:/run/secrets:ro
+      - /var/log/zt-pdp:/var/log/zt-pdp
+    networks: ["control"]
+
+networks:
+  control:
+    driver: bridge
+
+volumes:
+  redis-data:

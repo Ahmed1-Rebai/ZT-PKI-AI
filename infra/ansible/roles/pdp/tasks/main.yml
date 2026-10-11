@@ -1,11 +1,96 @@
 ---
-# Role: pdp
-# M3 · docs/06 — Docker Compose: Redis + OPA + FastAPI PDP (mTLS). Rego policy, trust engine, enforce.py (nft + OpenVPN mgmt).
-#
-# This is a scaffold: it runs green (no-op) so the full playbook is valid.
-# Fill in the real tasks at the milestone noted above, pulling configs from the
-# matching role in ../../../ (pki/ vpn/ firewall/ pdp/ ai/ sensor/ siem/ apps/).
+# Role: pdp — M3 control plane (FastAPI + OPA + Redis), docs/06.
 
-- name: pdp role placeholder
-  ansible.builtin.debug:
-    msg: "TODO (pdp): M3 · docs/06 — Docker Compose: Redis + OPA + FastAPI PDP (mTLS). Rego policy, trust engine, enforce.py (nft + OpenVPN mgmt)."
+- name: Install PDP runtime packages
+  ansible.builtin.apt:
+    name: [docker.io, docker-compose-plugin]
+    state: present
+    update_cache: true
+
+- name: Create PDP runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ '10001' if item in ['/etc/zt-pdp/certs', '/etc/zt-pdp/ssh', '/var/log/zt-pdp'] else 'root' }}"
+    group: "{{ '10001' if item in ['/etc/zt-pdp/certs', '/etc/zt-pdp/ssh', '/var/log/zt-pdp'] else 'root' }}"
+    mode: "{{ '0700' if item in ['/etc/zt-pdp/certs', '/etc/zt-pdp/ssh'] else '0750' if item == '/var/log/zt-pdp' else '0755' }}"
+  loop: [/opt/zt-pdp/app, /etc/zt-pdp, /etc/zt-pdp/certs, /etc/zt-pdp/ssh, /var/log/zt-pdp]
+
+- name: Check locally staged PDP secrets exist
+  ansible.builtin.stat:
+    path: "{{ zt_repo_root }}/pdp/{{ item }}"
+  delegate_to: localhost
+  become: false
+  register: zt_pdp_material
+  loop: [certs/ca-chain.crt, certs/pdp.crt, certs/pdp.key, ssh/id_ed25519]
+
+- name: Require staged PDP mTLS and gateway key material
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing pdp/{{ item.item }}. Follow pdp/README.md staging steps before deploying M3."
+  loop: "{{ zt_pdp_material.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Deploy PDP application source
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/pdp/{{ item }}"
+    dest: "/opt/zt-pdp/app/{{ item }}"
+    mode: "0644"
+  loop: [.dockerignore, Dockerfile, requirements.txt, config.py, trust.py, store.py, audit.py, enforce.py, policy.py, main.py]
+  notify: restart zt pdp
+
+- name: Deploy OPA policy bundle
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/pdp/policies/"
+    dest: /opt/zt-pdp/app/policies/
+    mode: "0644"
+  notify: restart zt pdp
+
+- name: Deploy the control-plane Compose definition
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/infra/docker-compose.yml"
+    dest: /opt/zt-pdp/docker-compose.yml
+    mode: "0644"
+  notify: restart zt pdp
+
+- name: Deploy PDP environment
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/pdp/.env.example"
+    dest: /etc/zt-pdp/pdp.env
+    owner: root
+    group: root
+    mode: "0600"
+  notify: restart zt pdp
+
+- name: Deploy PDP TLS material
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/pdp/certs/{{ item.src }}"
+    dest: "/etc/zt-pdp/certs/{{ item.dest }}"
+    owner: "10001"
+    group: "10001"
+    mode: "{{ item.mode }}"
+  loop:
+    - {src: ca-chain.crt, dest: ca-chain.crt, mode: '0644'}
+    - {src: pdp.crt, dest: pdp.crt, mode: '0644'}
+    - {src: pdp.key, dest: pdp.key, mode: '0600'}
+  notify: restart zt pdp
+
+- name: Deploy restricted gateway SSH identity
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/pdp/ssh/id_ed25519"
+    dest: /etc/zt-pdp/ssh/gateway_ssh_key
+    owner: "10001"
+    group: "10001"
+    mode: "0600"
+  notify: restart zt pdp
+
+- name: Enable Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Apply PDP control plane now
+  ansible.builtin.command: docker compose -f /opt/zt-pdp/docker-compose.yml up -d --build
+  changed_when: true

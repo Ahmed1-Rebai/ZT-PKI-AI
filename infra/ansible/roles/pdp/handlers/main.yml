@@ -1,0 +1,4 @@
+---
+- name: restart zt pdp
+  ansible.builtin.command: docker compose -f /opt/zt-pdp/docker-compose.yml up -d --build
+  changed_when: true

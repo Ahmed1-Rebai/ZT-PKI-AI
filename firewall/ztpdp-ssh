@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Forced command for the ztpdp SSH key.  The PDP can invoke exactly the
+# restricted nft helper; it cannot obtain a shell, tunnel, or arbitrary sudo.
+set -euo pipefail
+set -f
+
+original="${SSH_ORIGINAL_COMMAND:-}"
+case "$original" in
+  "sudo /usr/local/sbin/ztpdp-nft "*) ;;
+  *) echo "ztpdp: command denied" >&2; exit 126 ;;
+esac
+
+# No eval: shell metacharacters remain literal arguments and are rejected by
+# ztpdp-nft's strict action/IP/role/TTL validation.
+set -- $original
+[[ "$1" == sudo && "$2" == /usr/local/sbin/ztpdp-nft ]] || exit 126
+shift 2
+exec sudo /usr/local/sbin/ztpdp-nft "$@"

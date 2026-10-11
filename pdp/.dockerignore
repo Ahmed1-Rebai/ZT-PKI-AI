@@ -1,0 +1,8 @@
+# Runtime secrets are bind-mounted read-only by Compose, never baked into image layers.
+certs/
+ssh/
+.env
+.pytest_cache/
+__pycache__/
+tests/
+*.pyc

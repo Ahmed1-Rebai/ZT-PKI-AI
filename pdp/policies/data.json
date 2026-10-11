@@ -1,0 +1,13 @@
+{
+  "users": {
+    "alice@lab.local": {"role": "employee", "vpn_ip": "10.8.0.10"},
+    "admin@lab.local": {"role": "admin", "vpn_ip": "10.8.0.11"},
+    "carol@lab.local": {"role": "contractor", "vpn_ip": "10.8.0.12"}
+  },
+  "roles": {
+    "employee": {"min_score": 60, "resources": [{"dst": "10.10.10.10", "port": 443}]},
+    "admin": {"min_score": 85, "resources": [{"dst": "10.10.10.10", "port": 443}, {"dst": "10.10.20.10", "port": 22}]},
+    "contractor": {"min_score": 70, "resources": [{"dst": "10.10.10.10", "port": 443}]},
+    "quarantine": {"min_score": 0, "resources": [{"dst": "10.10.99.30", "port": 443}]}
+  }
+}
