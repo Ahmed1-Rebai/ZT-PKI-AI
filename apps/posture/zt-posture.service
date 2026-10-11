@@ -1,0 +1,9 @@
+[Unit]
+Description=ZT-PKI-AI posture report (one-shot, mTLS to the PDP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/zt-client/posture.env
+ExecStart=/usr/bin/python3 /opt/zt-posture/posture_agent.py

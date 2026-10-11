@@ -4,6 +4,9 @@
 # vpn/scripts/make-client.sh (embedded CA chain, client cert/key, tls-crypt).
 # The posture agent (M6) is added later.
 
+- name: Lab routes guard (internal space only via the tunnel)
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
+
 - name: Install OpenVPN client packages
   ansible.builtin.apt:
     name:
@@ -39,3 +42,83 @@
     owner: root
     group: root
     mode: "0600"
+
+# --- Posture agent (M6 · docs/06 §8) ---------------------------------------
+# Reports {cn, score, detail} to the PDP over mTLS every 60 s. The managed
+# marker + host firewall make this lab client compliant (score 1.0); an
+# unmanaged device (e.g. a stolen cert on another machine, S12) scores lower.
+
+- name: Install posture prerequisites (host firewall)
+  ansible.builtin.apt:
+    name: [ufw, python3]
+    state: present
+
+- name: Allow SSH before enabling the host firewall
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Enable the host firewall (posture control)
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: Create client config and agent directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop: [/etc/zt-client, /opt/zt-posture]
+
+- name: Mark this device as enrolled (managed)
+  ansible.builtin.copy:
+    dest: /etc/zt-client/managed
+    content: "enrolled by Ansible (client role)\n"
+    mode: "0644"
+
+- name: Deploy client mTLS material for the posture channel
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/vpn/client/pki/{{ item.src }}"
+    dest: "/etc/zt-client/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {src: ca-chain.crt, dest: ca-chain.crt, mode: "0644"}
+    - {src: "{{ vpn_client_user }}.crt", dest: client.crt, mode: "0644"}
+    - {src: "{{ vpn_client_user }}.key", dest: client.key, mode: "0600"}
+
+- name: Deploy posture agent
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/posture/posture_agent.py"
+    dest: /opt/zt-posture/posture_agent.py
+    mode: "0755"
+
+- name: Deploy posture agent environment
+  ansible.builtin.copy:
+    dest: /etc/zt-client/posture.env
+    mode: "0640"
+    content: |
+      ZT_PDP_URL=https://{{ pdp_ip }}:8443
+      ZT_CLIENT_CN={{ vpn_client_user }}@lab.local
+      ZT_CA=/etc/zt-client/ca-chain.crt
+      ZT_CERT=/etc/zt-client/client.crt
+      ZT_KEY=/etc/zt-client/client.key
+
+- name: Install posture service and timer
+  ansible.builtin.copy:
+    src: "{{ zt_repo_root }}/apps/posture/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop: [zt-posture.service, zt-posture.timer]
+
+- name: Enable the posture timer
+  ansible.builtin.systemd:
+    name: zt-posture.timer
+    enabled: true
+    state: started
+    daemon_reload: true

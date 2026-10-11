@@ -22,6 +22,11 @@
       {% for r in zt_routes %}
       ExecStart=/bin/sh -c 'ip route replace {{ r }}'
       {% endfor %}
+      # Lab address space is reachable ONLY via explicit routes (zones via the
+      # gateway, VPN /32s via tun0). Without this, the provisioning NAT adapter
+      # would route 10.10.x.x to the host, which sits on mgmt (10.10.99.2) —
+      # bypassing the gateway. More specific routes still win.
+      ExecStart=/bin/sh -c 'ip route replace unreachable 10.10.0.0/16'
 
       [Install]
       WantedBy=multi-user.target

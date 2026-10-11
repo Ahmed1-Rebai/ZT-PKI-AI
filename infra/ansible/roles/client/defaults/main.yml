@@ -1,3 +1,8 @@
 ---
 # Identity whose profile is installed (built by vpn/scripts/make-client.sh).
 vpn_client_user: alice
+
+# Untrusted client: no zone routes; internal endpoints are reachable only
+# through the VPN tunnel (pushed /32 routes). routes.yml adds the
+# `unreachable 10.10.0.0/16` guard so NAT can never be used instead.
+zt_routes: []
