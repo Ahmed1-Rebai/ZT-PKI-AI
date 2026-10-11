@@ -46,3 +46,6 @@ ai/models/*.pt
 
 # Vagrant local state (machine ids, SSH private keys)
 .vagrant/
+
+# AI engine mTLS identity (staged from sub-ca)
+ai/certs/
