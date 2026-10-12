@@ -72,7 +72,7 @@
 - [x] 🔵 Snapshot `pdp-ok` (then `m3-ok` after the rebuild, all active VMs)
 - [x] 🔵 **PDP enforcement ON (`vpn_pdp_enforce: "1"`) and verified end to end**: alice connects → PDP `authenticate: allow` (score 97, tier full) → `session_open` → gateway `allow_web {10.8.0.10 timeout 10m}` → alice reaches proxy → app → db through the tunnel. Without a PDP session the same request is dropped (`ZT-DROP SRC=10.8.0.10 DPT=443`)
 - [x] 🔵 Review fixes: users seeded from `data.json`; caller authorization (control endpoints only from mgmt; VPN clients get 403); posture bound to the tunnel address (alice cannot report as bob); gateway SSH host key pinned for the enforcer; gateway reuses the staged `ta.key` on rebuild
-- [ ] 🔵 Remaining PDP gaps: (a) a **fresh device** with no posture is denied the tunnel, so it cannot send its first posture report — admit it in quarantine instead (Rego `admit` already separates this); (b) `/v1/events` applies the score tier without checking `allow` (renewal loop corrects it within 60 s); (c) `revoke` tier clears rules but does not kill the session
+- [x] 🔵 PDP gaps closed (Phase 10, [perf.md §5](tests/reports/perf.md)): fresh device admitted in **quarantine** then upgraded by its posture report; `/v1/events` never grants more than `allow` permits (`effective_tier`); revoke/kill always kill the VPN session
 
 ## 6. Reverse proxy mTLS + posture agent — 6 → 13 Dec `[MVP]`
 
