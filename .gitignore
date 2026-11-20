@@ -1,6 +1,8 @@
 # Local-only docs
 docs/11-architecture-diagram.md
 docs/13-presentation.md
+docs/14-script-oral-avancement.md
+docs/description-projet.tex
 
 # Secrets / PKI material
 *.key

@@ -6,12 +6,19 @@ state and gateway nftables enforcement (see [docs/06](../docs/06-zero-trust-pdp-
 ```
 pdp/
 ├── main.py          # FastAPI endpoints (/authenticate, /session/*, /posture, /events, ...)
-├── trust.py         # trust score computation + EMA
-├── enforce.py       # nftables dynamic rules + OpenVPN management (kill session)
+├── config.py        # environment-driven Settings dataclass
+├── trust.py         # trust score computation + EMA + non-compensable floor rule
+├── policy.py        # OPA REST client
+├── store.py         # RedisStore + in-memory test store
+├── enforce.py       # gateway enforcement via restricted SSH helper (ztpdp-nft)
+├── audit.py         # structured JSONL audit logging for Wazuh
 ├── policies/
-│   ├── authz.rego   # OPA policy (allow + tier)
-│   ├── data.json    # roles, min scores, resources
+│   ├── authz.rego   # OPA policy (admit, allow + tier)
+│   ├── data.json    # roles, min scores, resources, seeded users
 │   └── authz_test.rego
+├── scripts/
+│   └── sync-pki.sh  # stages mTLS certs + gateway SSH key from sub-ca
+├── tests/           # FastAPI endpoint + trust-engine unit tests
 └── Dockerfile
 ```
 

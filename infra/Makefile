@@ -1,5 +1,5 @@
 # ZT-PKI-AI — convenience targets. Run from infra/.
-.PHONY: help tools core detection workloads client up provision ai mgmt-host isolate reconnect status halt destroy lint vpn vpn-check
+.PHONY: help tools core detection workloads client up provision ai mgmt-host isolate reconnect status halt destroy lint vpn vpn-check redteam abcd
 
 help:
 	@echo "tools       - install Vagrant + Ansible (Debian/Ubuntu host, needs sudo)"
@@ -11,6 +11,8 @@ help:
 	@echo "provision   - re-run Ansible on all running VMs"
 	@echo "vpn         - M2: sync PKI, provision zt-gw, build alice.ovpn, provision client-lin"
 	@echo "vpn-check   - M2: run the VPN/gateway verification checks"
+	@echo "redteam     - M5/M7: run Red Team scenarios (S7-S12, S15-S17) from client-lin"
+	@echo "abcd        - M7: run full A/B/C/D surface + attack benchmark from client-lin"
 	@echo "ai          - configure the AI engine on THIS host (GPU), via Ansible --limit ai"
 	@echo "mgmt-host   - set this host's mgmt IP to 10.10.99.2 on the host-only adapter"
 	@echo "isolate     - detach NAT (eth0) from lab VMs for attack tests"
@@ -33,6 +35,8 @@ ai:          ; cd ansible && ansible-playbook -i inventory.ini site.yml --limit 
 # M2 — VPN + gateway (docs/05). Builds the OpenVPN gateway + client profile.
 vpn:         ; bash ../vpn/scripts/deploy.sh
 vpn-check:   ; bash ../vpn/scripts/verify.sh
+redteam:     ; bash ../tests/run-redteam.sh
+abcd:        ; bash ../tests/abcd/run-all.sh && bash ../tests/abcd/attack-abcd.sh
 
 # Give THIS host an address on the mgmt host-only network (AI node = 10.10.99.2).
 # Finds the vboxnet backing 10.10.99.0/24 and assigns the host side .2.
@@ -46,7 +50,7 @@ halt:        ; vagrant halt
 destroy:     ; vagrant destroy -f
 
 # Toggle Vagrant's NAT adapter (nic1) so lab VMs have no Internet during tests.
-LABVMS = sub-ca zt-gw zt-pdp zt-sensor zt-ai siem web-proxy web-app db client-lin
+LABVMS = sub-ca zt-gw zt-pdp zt-sensor siem web-proxy web-app db client-lin
 isolate:
 	@for vm in $(LABVMS); do VBoxManage modifyvm $$vm --nic1 null 2>/dev/null && echo "isolated $$vm"; done
 reconnect:

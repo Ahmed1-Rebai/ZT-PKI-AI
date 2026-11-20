@@ -5,10 +5,10 @@
 
 ## 1. Parties
 
-| Role | Member | Machine |
+| Role | Team | Machine |
 |---|---|---|
-| 🔵 Blue Team | Ahmed Rebai | Blue Team host — Linux · Ryzen 5 · 48 GB RAM · RTX 5050 8 GB · VirtualBox 7.0.16 |
-| 🔴 Red Team | Partner | Attacker laptop — Kali Linux 2026.2 |
+| 🔵 Blue Team | Defense & Architecture | Blue Team host — Linux · Ryzen 5 · 48 GB RAM · RTX 5050 8 GB · VirtualBox 7.1 |
+| 🔴 Red Team | Offensive Validation | Untrusted attacker node (`client-lin` `192.168.100.11` / Kali Linux 2026.2) |
 
 ## 2. Purpose
 

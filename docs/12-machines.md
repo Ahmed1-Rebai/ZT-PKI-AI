@@ -98,10 +98,10 @@ rest — essential for the attack scenarios.
 - **Network:** untrust `192.168.100.11`.
 - **OS/size:** Ubuntu 22.04 · 2 vCPU · 2 GB.
 
-### `kali` — Red Team attacker *(partner's laptop, not a VM here)*
-- **Why:** external attacker with no credentials, used for authorized testing against the lab only.
-- **What it does:** reconnaissance, access attempts, DoS, exploitation (S1–S6, S13…).
-- **Network:** untrust only (cabled to the gateway's WAN side), **no Internet during tests**.
+### `kali` / `client-lin` — Red Team attacker node
+- **Why:** external attacker with no credentials (or compromised endpoint inside the tunnel), used for authorized testing against the lab only.
+- **What it does:** reconnaissance, access attempts, DoS, exploitation (S1–S17).
+- **Network:** untrust only (`192.168.100.0/24`), **no Internet during tests**.
 
 ### `client-win` — Windows client *(optional)*
 - **Why:** shows the posture agent and client flow on Windows too; skipped unless needed (Ansible-over-WinRM overhead).
@@ -122,7 +122,7 @@ rest — essential for the attack scenarios.
 | web-proxy | Data | Nginx mTLS proxy | dmz `10.10.10.10` | Debian 12 | 1 / 1 GB |
 | web-app | Data | App / API | app `10.10.20.10` | Debian 12 | 1 / 1 GB |
 | db | Data | PostgreSQL | data `10.10.30.10` | Debian 12 | 1 / 1 GB |
-| client-lin | Untrusted | Legit/compromised client | untrust `192.168.100.11` | Ubuntu 22.04 | 2 / 2 GB |
-| kali | Untrusted | Red Team attacker (partner laptop) | untrust (cabled) | Kali 2026.2 | — |
+| client-lin | Untrusted | Legit/compromised client & Red Team runner | untrust `192.168.100.11` | Ubuntu 22.04 | 2 / 2 GB |
+| kali | Untrusted | Red Team attacker (optional external node) | untrust (cabled) | Kali 2026.2 | — |
 
 **Total VM footprint:** ≈ 18 GB RAM for the 10 lab VMs (AI offloaded to the host).

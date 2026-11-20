@@ -45,7 +45,7 @@ One TCP connect / HTTPS request per service from alice's tunnel (employee role).
 | **ZT violations** | | 5 | 0 | 0 | 0 |
 | **Rights expire (TTL)** | | no (permanent) | no (permanent) | yes | yes |
 
-Detection / TTQ columns per configuration (S8–S11, S16) are filled in the joint Red Team session.
+Run `bash tests/abcd/attack-abcd.sh` to populate the comparative attack columns (S7, S8/S10, S12) from `client-lin`.
 
 ## Charts
 

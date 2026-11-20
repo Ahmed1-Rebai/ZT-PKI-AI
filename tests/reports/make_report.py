@@ -71,7 +71,18 @@ def abcd_section(rows) -> list[str]:
     out += ["| **Reachable services** | | " + " | ".join(f"{r['reachable']}/{len(targets)}" for r in rows) + " |",
             "| **ZT violations** | | " + " | ".join(str(r["violations"]) for r in rows) + " |",
             "| **Rights expire (TTL)** | | " + " | ".join("yes" if r["rights_expire"] else "no (permanent)" for r in rows) + " |",
-            "", "Detection / TTQ columns per configuration (S8–S11, S16) are filled in the joint Red Team session.", ""]
+            ""]
+    attacks = load("abcd/attacks.json")
+    if attacks:
+        out += ["## A/B/C/D comparison — Red Team attacks from `client-lin`", "",
+                "| Attack Scenario (from `client-lin` / `10.8.0.10`) | " + " | ".join(f"{c} – {CONFIGS[c]}" for c in CONFIGS if c in attacks) + " |",
+                "|---|" + "---|" * len([c for c in CONFIGS if c in attacks]),
+                "| **S7** — Out-of-role SSH (`10.10.20.10:22`) | " + " | ".join(attacks[c]["S7_out_of_role_ssh"] for c in CONFIGS if c in attacks) + " |",
+                "| **S12** — Stolen cert on unmanaged device (posture fail) | " + " | ".join(attacks[c]["S12_stolen_cert_unmanaged"] for c in CONFIGS if c in attacks) + " |",
+                "| **S8 / S10** — Compromised tunnel host (Scan / Exfil) | " + " | ".join(attacks[c]["S8_S10_compromised_host_scan_exfil"] for c in CONFIGS if c in attacks) + " |",
+                ""]
+    else:
+        out += ["Run `bash tests/abcd/attack-abcd.sh` to populate the comparative attack columns (S7, S8/S10, S12) from `client-lin`.", ""]
     return out
 
 

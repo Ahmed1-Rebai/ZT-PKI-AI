@@ -15,7 +15,7 @@ Deployed by `infra/ansible/roles/gateway` as:
 | `nftables.conf` | `/etc/nftables.conf` |
 | `gw-input.nft`  | `/etc/nftables.d/gw-input.nft` (included by `/etc/nftables.conf`) |
 
-Dynamic set elements (`allow_web`, `allow_ssh`, `allow_remed`, `quarantine`) are
+Dynamic set elements (`allow_web`, `allow_ssh`, `quarantine`) are
 populated at runtime by the PDP (`pdp/enforce.py`) with a timeout; at M2 the
 sets are empty so a connected client reaches nothing (deny-by-default).
 

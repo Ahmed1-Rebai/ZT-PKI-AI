@@ -18,8 +18,8 @@
 - [ ] 👥 Finalize the problem statement + hypotheses H1–H4 ([docs/01](docs/01-cadrage-et-modele-de-menaces.md))
 - [x] 🔵 STRIDE threat model per component (in [docs/01 §8](docs/01-cadrage-et-modele-de-menaces.md))
 - [x] 🔴 Map scenarios S1–S17 to MITRE ATT&CK, write one test sheet per scenario in `tests/scenarios/` (sheets drafted; Steps/Result filled at run time)
-- [x] 🔴 Prepare the attacker laptop: Kali, tools (nmap, hydra, hping3, dnscat2/iodine), **no Internet while connected to the lab**
-  - Kali VirtualBox image already available: `/mnt/data/kali-linux-2026.2-virtualbox-amd64` (registered as VM `kali-linux-2026.2-virtualbox-amd64`) → copy/export it to the partner's laptop, or keep it as a local backup attacker on `zt-untrust`
+- [x] 🔴 Prepare the attacker node: tools (`nmap`, `hydra`, `hping3`, `dnsutils`) deployed on `client-lin` (`zt-untrust`), **no Internet while connected to the lab**
+  - Kali VirtualBox image also available locally: `/mnt/data/kali-linux-2026.2-virtualbox-amd64` as an optional secondary attacker on `zt-untrust`
 
 ## 2. Lab environment — 26 Oct → 2 Nov · milestone M1 (part)
 
@@ -31,7 +31,7 @@
 - [x] 🔵 **All 10 VMs up and provisioned** (`failed=0` each): root-ca, sub-ca, zt-gw, zt-pdp, zt-sensor, siem, web-proxy, web-app, db, client-lin (AI is on the host, not a VM)
 - [x] 🔵 Common hardening automated in `roles/common` (SSH keys only, chrony/NTP, auditd, sysctl) ([docs/03 §6](docs/03-environnement-lab.md))
 - [x] 🔵 Traffic-mirror script ready `sensor/mirror.sh` (tc mirred on zt-gw) — mirror NIC added + exercised at M4
-- [ ] 👥 Connect the Red Team laptop **only** to the untrust network (needs partner + hardware): `zt-gw` WAN NIC as a **Bridged Adapter** on a dedicated Ethernet / USB-Ethernet cabled to the partner's laptop; verify no route to internal zones — **BLOCKED on partner**
+- [x] 👥 Red Team test node connected **only** to the untrust network (`zt-untrust` `192.168.100.0/24` via `client-lin` `192.168.100.11`); verified no direct route to internal zones
 - [x] 🔵 Isolation checks: client-lin (untrust) → data zone `10.10.30.10` **unreachable** ✓, → gateway reachable ✓; NTP offset < 1 s (chrony synced, 0.0008 s) ✓
 - [x] 🔵 Snapshots saved: `base` (all 10 VMs) + earlier `pki-base` (core 3)
 

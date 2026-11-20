@@ -7,11 +7,18 @@
 - name: Lab routes guard (internal space only via the tunnel)
   ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
 
-- name: Install OpenVPN client packages
+- name: Install OpenVPN client and Red Team test packages
   ansible.builtin.apt:
     name:
       - openvpn
       - openssl
+      - curl
+      - nmap
+      - hping3
+      - hydra
+      - dnsutils
+      - netcat-openbsd
+      - iperf3
     state: present
     update_cache: true
 

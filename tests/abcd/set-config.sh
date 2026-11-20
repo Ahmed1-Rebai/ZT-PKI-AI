@@ -31,7 +31,7 @@ echo "[*] gateway -> config $CFG (PDP_ENFORCE=$ENFORCE)"
 # Restart OpenVPN first: its disconnect hooks then run before the new rules exist.
 vs zt-gw "sudo sed -i 's/^PDP_ENFORCE=.*/PDP_ENFORCE=$ENFORCE/' /etc/openvpn/zt/hook.env; sudo systemctl restart openvpn-server@server; sleep 2"
 vs zt-gw "for h in \$(sudo nft -a list chain inet zt forward | awk '/zt-abcd/{print \$NF}'); do sudo nft delete rule inet zt forward handle \$h; done
-          for s in allow_web allow_ssh allow_remed quarantine; do sudo nft flush set inet zt \$s; done"
+          for s in allow_web allow_ssh quarantine; do sudo nft flush set inet zt \$s; done"
 case "$CFG" in
   A) vs zt-gw "sudo nft insert rule inet zt forward ip saddr 10.8.0.0/24 ip daddr 10.10.0.0/16 accept comment zt-abcd-perimeter" ;;
   B) vs zt-gw "sudo nft add element inet zt allow_web { $WEB }"

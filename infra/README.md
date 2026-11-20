@@ -1,6 +1,6 @@
 # infra/ — Infrastructure as Code (Vagrant + Ansible on VirtualBox)
 
-Hypervisor: **VirtualBox 7.0.16** on the Blue Team host.
+Hypervisor: **VirtualBox 7.1 (virtio)** on the Blue Team host.
 VM layer: **Vagrant** (`Vagrantfile`). Configuration: **Ansible** (`ansible/`).
 
 ## ⚠️ Requires VirtualBox ≥ 7.1
@@ -34,7 +34,7 @@ if we moved to libvirt/KVM or Proxmox.)
 | db | PostgreSQL | data | debian-12 | M6 |
 | client-lin | Legit/compromised client | untrust | ubuntu-22.04 | M2/M6 |
 
-`client-win` (Windows) and `kali` (partner's laptop) are set up by hand, not via this IaC.
+`client-win` (Windows) and an optional external `kali` host are not managed by this IaC (`client-lin` runs both legitimate client and automated Red Team test workloads).
 Total VM RAM ≈ 18 GB (AI moved off-VM onto the host).
 
 ## AI on the host
@@ -72,6 +72,8 @@ make provision
 
 # 3. For attack-test runs, cut Internet from the lab VMs
 make isolate       # detaches each VM's NAT adapter (eth0)
+make redteam       # run S7-S12, S15-S17 scenarios from client-lin
+make abcd          # run A/B/C/D comparative surface + attack benchmark
 make reconnect     # re-attach when you need apt again
 ```
 
@@ -82,18 +84,18 @@ CSR), detach its NIC and keep it halted — it must stay offline.
 
 ```
 infra/
-├── Vagrantfile              # 11 VMs + 5 internal networks + Ansible provisioner
-├── Makefile                 # tools / core / detection / workloads / isolate ...
+├── Vagrantfile              # 10 VMs + 5 internal networks + mirror net + Ansible provisioner
+├── Makefile                 # tools / core / detection / workloads / vpn / redteam / abcd / isolate ...
+├── docker-compose.yml       # PDP + OPA + Redis control-plane stack
 ├── requirements.txt         # Python deps for pdp/ and ai/
 └── ansible/
     ├── ansible.cfg
     ├── inventory.ini        # static inventory (mgmt-net IPs)
-    ├── site.yml             # common + one play per role
+    ├── site.yml             # common + one play per role + wazuh_agent
     ├── group_vars/all.yml   # networks, IPs, versions
+    ├── tasks/routes.yml     # shared internal-route guard
     └── roles/
-        ├── common/          # baseline (NTP, SSH keys, sysctl, auditd) — implemented
-        └── ca_root, ca_sub, gateway, pdp, sensor, ai, siem, proxy, webapp, db, client
-                              # milestone-annotated stubs, filled per phase
+        └── common, ca_root, ca_sub, gateway, pdp, sensor, ai, siem, wazuh_agent, proxy, webapp, db, client
 ```
 
 The role stubs reference the matching top-level folders (`../pki`, `../vpn`,

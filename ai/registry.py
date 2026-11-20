@@ -21,7 +21,7 @@ class IntegrityError(RuntimeError):
     pass
 
 
-def _sha256(path: str) -> str:
+def sha256(path: str) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
@@ -37,7 +37,7 @@ def verify(model_dir: str = DEFAULT_DIR) -> dict:
         path = os.path.join(model_dir, name)
         if not os.path.exists(path):
             raise IntegrityError(f"missing artefact: {name}")
-        actual = _sha256(path)
+        actual = sha256(path)
         if actual != expected:
             raise IntegrityError(f"hash mismatch for {name}: {actual[:16]}... != {expected[:16]}...")
     return manifest

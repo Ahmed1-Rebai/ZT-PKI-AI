@@ -1,30 +1,38 @@
 # Red Team session — coordination runbook
 
-Shared checklist for the joint session (🔵 Ahmed on the lab host, 🔴 partner on
-the Kali laptop). This file is the **order of operations**: how to wire the
-laptop in, prove isolation, switch configs, time the controls and file the
-evidence. The **attack specifics live in the scenario sheets** —
-[tests/scenarios/](tests/scenarios/), one sheet per Sx — not here.
+Shared checklist for the Red Team validation campaign (🔵 Blue Team on the lab
+host, 🔴 Red Team on `client-lin` or the isolated attacker node). This file is
+the **order of operations**: how to verify isolation, switch configs, time the
+controls and file the evidence. The **attack specifics live in the scenario
+sheets** — [tests/scenarios/](tests/scenarios/), one sheet per Sx — not here.
 
 Nothing starts until [RULES-OF-ENGAGEMENT.md](RULES-OF-ENGAGEMENT.md) is signed
-(both members) and the target snapshot is taken (§3).
+(both teams) and the target snapshot is taken (§3).
 
 ---
 
-## 0. Roles
+## 0. Roles & Execution Modes
 
-| | Who | Machine | Touches |
+### Mode A — Autonomous Execution on `client-lin` (Recommended / Self-contained lab)
+Because `client-lin` (`192.168.100.11`) sits on the untrusted segment (`zt-untrust 192.168.100.0/24`) in front of `zt-gw` (`192.168.100.1`), all 17 scenarios and the A/B/C/D benchmarks run directly from `client-lin` in three postures:
+1. **External attacker (outside tunnel)** — `bash tests/run-m2.sh` (S1–S6, S13, S14).
+2. **Stolen certificate on unmanaged attacker machine** — `bash tests/run-redteam.sh s12` (removes `/etc/zt-client/managed` and disables `ufw` on `client-lin` → PDP demotes to `quarantine`).
+3. **Compromised internal client (inside `alice` tunnel `10.8.0.10`)** — `bash tests/run-redteam.sh` (S7–S11, S15–S17) and `bash tests/abcd/attack-abcd.sh` (comparative A/B/C/D evaluation).
+
+### Mode B — Dual-Machine Session
+
+| | Team | Machine | Touches |
 |---|---|---|---|
-| 🔵 Blue | Ahmed | lab host (VirtualBox) | PDP, gateway, SIEM, config switching, timing |
-| 🔴 Red | partner | Kali laptop | only `zt-untrust` 192.168.100.0/24, via the scenario sheets |
+| 🔵 Blue | Blue Team | lab host (VirtualBox) | PDP, gateway, SIEM, config switching, timing |
+| 🔴 Red | Red Team | `client-lin` (`192.168.100.11`) or external Kali node | only `zt-untrust` 192.168.100.0/24, via the scenario sheets |
 
 The Red Team only ever reaches the lab through the gateway's WAN NIC
 (`192.168.100.1`). The internal zones (10.10.x.x) must never be routable from
-Kali — that is the whole point of the isolation check in §2.
+the untrusted node — that is the whole point of the isolation check in §2.
 
 ---
 
-## 1. Blue prep (before the partner arrives) — ~15 min
+## 1. Blue prep (before the test campaign) — ~15 min
 
 1. **Unload KVM, resume the lab** (they can't both hold the CPU virt):
    ```bash

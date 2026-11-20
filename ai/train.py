@@ -10,7 +10,6 @@ usage: .venv/bin/python ai/train.py [--quick]
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import platform
@@ -30,6 +29,7 @@ sys.path.insert(0, HERE)
 from data import load_cic, split  # noqa: E402
 from models import (Preprocessor, fixed_weight_fusion, norm_ae, norm_if,  # noqa: E402
                     recon_error, train_autoencoder)
+from registry import sha256  # noqa: E402
 from schema import FEATURES  # noqa: E402
 
 REPO = os.path.dirname(HERE)
@@ -55,14 +55,6 @@ def metrics(y: np.ndarray, score: np.ndarray, thr: float) -> dict:
         "pr_auc": round(float(average_precision_score(y, score)), 4),
         "threshold": round(float(thr), 4),
     }
-
-
-def sha256(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def main() -> None:

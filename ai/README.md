@@ -10,9 +10,12 @@ ai/
 ├── models.py          # preprocessing (log1p+std), GPU autoencoder, docs/07 §6 normalisations
 ├── train.py           # train + evaluate (E1), SHAP, latency, signed manifest
 ├── registry.py        # load models ONLY if SHA-256 matches the manifest
-├── reports/           # metrics.md (human) + metrics.json (raw)  — tracked
+├── scoring.py         # offline/online scorer turning 47 features into calibrated anomaly probability
+├── pdp_client.py      # mTLS client reporting anomaly events to PDP (/v1/events)
+├── serve.py           # live NFStream capture + scoring daemon running on zt-sensor
+├── reports/           # metrics.md (human) + metrics.json (raw) — tracked
 ├── models/            # baseline.joblib, ae.pt (git-ignored) + manifest.json (tracked)
-└── tests/             # schema + integrity tests
+└── tests/             # schema, scoring + integrity tests
 ```
 
 ## Setup (once)

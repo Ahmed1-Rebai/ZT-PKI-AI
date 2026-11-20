@@ -12,7 +12,7 @@ from typing import Any
 
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from audit import configure, emit
 from config import Settings, settings
@@ -88,7 +88,7 @@ def load_directory(path: str) -> dict[str, dict[str, Any]]:
 
 def build_app(store: Store | None = None, policy: Any | None = None,
               enforcer: Any | None = None, cfg: Settings = settings) -> FastAPI:
-    async def renewal_loop(app: FastAPI) -> None:
+    async def renewal_loop() -> None:
         """Refresh only policy-approved rules; a PDP outage lets gateway TTLs expire."""
         while True:
             await asyncio.sleep(cfg.renewal_interval_seconds)
@@ -124,7 +124,7 @@ def build_app(store: Store | None = None, policy: Any | None = None,
         app.state.policy = policy or OpaPolicy(cfg.opa_url)
         app.state.enforcer = enforcer or GatewayEnforcer(cfg.gateway_host, cfg.gateway_user, cfg.gateway_key,
                                                          cfg.dry_run, cfg.gateway_known_hosts)
-        task = asyncio.create_task(renewal_loop(app))
+        task = asyncio.create_task(renewal_loop())
         try:
             yield
         finally:

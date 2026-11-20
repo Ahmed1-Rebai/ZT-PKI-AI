@@ -25,9 +25,6 @@ class Settings:
     gateway_key: str = os.getenv("ZT_GATEWAY_KEY", "/run/secrets/gateway_ssh_key")
     # Pinned gateway SSH host key (written by the pdp role); refuses an impostor.
     gateway_known_hosts: str = os.getenv("ZT_GATEWAY_KNOWN_HOSTS", "/run/secrets/known_hosts")
-    openvpn_management_host: str = os.getenv("ZT_OPENVPN_MANAGEMENT_HOST", "127.0.0.1")
-    openvpn_management_port: int = int(os.getenv("ZT_OPENVPN_MANAGEMENT_PORT", "7505"))
-    pki_revoke_command: str = os.getenv("ZT_PKI_REVOKE_COMMAND", "")
     dry_run: bool = _bool("ZT_ENFORCER_DRY_RUN", False)
     # User directory (CN -> role, fixed VPN IP), seeded into the store at start-up.
     # The same file feeds OPA, so roles and identities have one source of truth.

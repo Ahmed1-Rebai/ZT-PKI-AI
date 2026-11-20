@@ -78,10 +78,10 @@ if run s3; then
   t0=$(date -u +%s)
   gssh sub-ca "cd /home/vagrant && PKI_BASE=/home/vagrant PKI_PASS='$LABPASS' bash pki/scripts/revoke.sh pki/sub/certs/alice.crt keyCompromise" > "$EVD/s03_revoked/revoke.txt" 2>&1
   gssh sub-ca "cd /home/vagrant && PKI_BASE=/home/vagrant PKI_PASS='$LABPASS' bash pki/scripts/gencrl.sh >/dev/null 2>&1"
-  fetch sub-ca /home/vagrant/pki/sub/crl/sub.pem > "$REPO/vpn/server/crl.pem"
-  cp "$REPO/vpn/server/crl.pem" "$EVD/s03_revoked/crl.pem"
+  fetch sub-ca /home/vagrant/pki/sub/crl/sub.pem > "$REPO/vpn/server/pki/crl.pem"
+  cp "$REPO/vpn/server/pki/crl.pem" "$EVD/s03_revoked/crl.pem"
   # Publish the new CRL to the gateway (OpenVPN re-reads crl-verify when the file changes).
-  ( cd "$INFRA" && vagrant upload "$REPO/vpn/server/crl.pem" /home/vagrant/crl.pem zt-gw ) >/dev/null 2>&1
+  ( cd "$INFRA" && vagrant upload "$REPO/vpn/server/pki/crl.pem" /home/vagrant/crl.pem zt-gw ) >/dev/null 2>&1
   gssh zt-gw 'sudo install -m644 /home/vagrant/crl.pem /etc/openvpn/server/crl.pem'
   gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1; sudo timeout 15 openvpn --config /tmp/alice.ro --connect-retry-max 1 --verb 4 >/tmp/s3.log 2>&1'
   echo "revocation -> refusal wall time: $(( $(date +%s) - t0 ))s (includes CRL publish + reconnect)" > "$EVD/s03_revoked/timing.txt"

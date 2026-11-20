@@ -8,7 +8,7 @@ usage() { echo "usage: ztpdp-nft {allow|quarantine|clear|kill} ..." >&2; exit 64
 valid_ip() { [[ "$1" =~ ^10\.8\.0\.(1?[0-9]{1,2}|2[0-4][0-9]|25[0-4])$ ]]; }
 valid_ttl() { [[ "$1" == "10m" || "$1" == "2m" || "$1" == "30m" ]]; }
 delete() { nft delete element inet zt "$1" "{ $2 }" 2>/dev/null || true; }
-clear() { delete allow_web "$1"; delete allow_ssh "$1"; delete quarantine "$1"; delete allow_remed "$1"; }
+clear() { delete allow_web "$1"; delete allow_ssh "$1"; delete quarantine "$1"; }
 
 case "${1:-}" in
   allow)
