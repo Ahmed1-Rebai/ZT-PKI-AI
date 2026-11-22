@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Benign part of the A/B/C/D comparison (docs/09 §6): switch to each config,
 # record the reachability matrix, then return the lab to D (normal state).
-# The attack columns (S8–S11, S16 detection/TTQ per config) are added during
-# the joint Red Team session with the same switcher.
+# The attack part (S7, S8 per config) is tests/abcd/attack-abcd.sh.
 # usage (from the host):  bash tests/abcd/run-all.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"

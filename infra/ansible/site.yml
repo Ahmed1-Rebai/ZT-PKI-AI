@@ -33,10 +33,11 @@
   become: true
   roles: [sensor]
 
-# AI engine runs on the host to use the RTX 5050 GPU (no VirtualBox CUDA
-# passthrough). This play targets localhost; run it explicitly, not via Vagrant:
+# Training uses the host GPU (no CUDA passthrough in VirtualBox); inference is
+# deployed on zt-sensor by the sensor role. This play targets localhost; run it
+# explicitly, not via Vagrant:
 #   ansible-playbook -i inventory.ini site.yml --limit ai -K
-- name: AI anomaly-detection engine (host, GPU)
+- name: Local AI training environment (host, GPU)
   hosts: ai
   become: true
   roles: [ai]

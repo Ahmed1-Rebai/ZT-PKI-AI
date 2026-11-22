@@ -5,7 +5,6 @@
 | Field | Value |
 |---|---|
 | **ID / Title** | S4 — Expired certificate |
-| **Owner** | Red Team |
 | **Objective** | Verify the Zero Trust control: *X.509 validity* |
 | **Tool / method** | `clock forward / -days 0` |
 | **MITRE ATT&CK** | T1078 |

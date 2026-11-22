@@ -1,12 +1,12 @@
-192.168.100.11:49309 VERIFY WARNING: depth=2, unable to get certificate CRL: C=TN, O=ZT-Lab, CN=ZT-Lab Root CA
-192.168.100.11:49309 VERIFY SCRIPT OK: depth=2, C=TN, O=ZT-Lab, CN=ZT-Lab Root CA
-192.168.100.11:49309 VERIFY OK: depth=2, C=TN, O=ZT-Lab, CN=ZT-Lab Root CA
-192.168.100.11:49309 VERIFY SCRIPT OK: depth=1, C=TN, O=ZT-Lab, CN=ZT-Lab Issuing CA
-192.168.100.11:49309 VERIFY OK: depth=1, C=TN, O=ZT-Lab, CN=ZT-Lab Issuing CA
-192.168.100.11:49309 VERIFY ERROR: depth=0, error=certificate has expired: C=TN, O=ZT-Lab, CN=bob@lab.local, serial=8208
-192.168.100.11:49309 Sent fatal SSL alert: certificate expired
-192.168.100.11:49309 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
-192.168.100.11:49309 TLS_ERROR: BIO read tls_read_plaintext error
-192.168.100.11:49309 TLS Error: TLS object -> incoming plaintext read error
-192.168.100.11:49309 TLS Error: TLS handshake failed
-192.168.100.11:49309 SIGUSR1[soft,tls-error] received, client-instance restarting
+192.168.100.11:49930 VERIFY OK: depth=2, C=TN, O=ZT-Lab, CN=ZT-Lab Root CA
+192.168.100.11:49930 VERIFY SCRIPT OK: depth=1, C=TN, O=ZT-Lab, CN=ZT-Lab Issuing CA
+192.168.100.11:49930 VERIFY OK: depth=1, C=TN, O=ZT-Lab, CN=ZT-Lab Issuing CA
+192.168.100.11:49930 VERIFY ERROR: depth=0, error=certificate has expired: C=TN, O=ZT-Lab, CN=bob@lab.local, serial=8218
+192.168.100.11:49930 Sent fatal SSL alert: certificate expired
+192.168.100.11:49930 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
+192.168.100.11:49930 TLS_ERROR: BIO read tls_read_plaintext error
+192.168.100.11:49930 TLS Error: TLS object -> incoming plaintext read error
+192.168.100.11:49930 TLS Error: TLS handshake failed
+192.168.100.11:49930 SIGUSR1[soft,tls-error] received, client-instance restarting
+read UDPv4 [ECONNREFUSED]: Connection refused (fd=7,code=111)
+read UDPv4 [ECONNREFUSED]: Connection refused (fd=7,code=111)

@@ -99,7 +99,7 @@
     <mitre><id>T1078</id><id>T1046</id></mitre>
   </rule>
 
-  <!-- File integrity on the PEP and the PKI (S15) -->
+  <!-- File integrity on the PEP and the PKI (S11) -->
   <rule id="100160" level="13">
     <if_sid>550,553,554</if_sid>
     <field name="file">/etc/nftables</field>

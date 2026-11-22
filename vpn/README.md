@@ -22,7 +22,7 @@ vpn/
     ├── sync-pki.sh       # fetch PKI material from sub-ca into the staging dirs
     ├── make-client.sh    # render <user>.ovpn from staged material
     ├── deploy.sh         # one-shot: sync + provision gateway + build client profile
-    └── verify.sh         # M2 checks (S1/S2/S3/S14 + services); `make vpn-check`
+    └── verify.sh         # M2 checks (S1/S2/S3/S10 + services); `make vpn-check`
 ```
 
 > Generated `*.ovpn`, `ta.key` and all private keys are **not committed**.
@@ -51,15 +51,15 @@ The hooks read `/etc/openvpn/zt/hook.env`:
 * `PDP_ENFORCE=0` — **M2 bootstrap**: OpenVPN enforces mTLS + CRL; the hooks only
   log and pin IPs. Used while the PDP (M3) is not built yet.
 * `PDP_ENFORCE=1` — **M3+**: every decision comes from the PDP; if it is
-  unreachable the connection is denied (ENF4 / S14).
+  unreachable the connection is denied (ENF4 / S10).
 
 ## Operational notes
 
 * **CRL lifetime.** The Issuing CA CRL is valid 24 h. `crl-verify` refuses *every*
-  client once it expires (`CRL has expired`), so before a demo run
-  `pki/scripts/gencrl.sh` on `sub-ca` and re-publish it to the gateway
-  (re-run `make vpn`, or copy the new `crl.pem` to `/etc/openvpn/server/crl.pem`;
-  OpenVPN reloads it on change). Automated distribution is an M3 item.
+  client once it expires (`CRL has expired`). There is no scheduled refresh:
+  before a demo or test session run `bash pki/scripts/refresh-crl.sh` from the
+  host. It regenerates the CRL on `sub-ca` and installs it on the gateway
+  (`/etc/openvpn/server/crl.pem`, re-read on each connection) and on the proxy.
 * `docker`/`vagrant` deployment assumes the host has VirtualBox with AMD-V free —
   unload KVM first if it is loaded (`sudo modprobe -r kvm_amd kvm`).
 
@@ -67,6 +67,6 @@ The hooks read `/etc/openvpn/zt/hook.env`:
 
 ```bash
 make vpn-check                 # services + S1/S2 + fail-closed (safe)
-bash ../vpn/scripts/verify.sh --full   # also S3 (revoked) + S14
-tests/run-m2.sh                # run S1-S6, S13, S14 and write tests/evidence/
+bash ../vpn/scripts/verify.sh --full   # also S3 (revoked) + S10
+tests/run-m2.sh                # run S1-S6, S9, S10 and write tests/evidence/
 ```

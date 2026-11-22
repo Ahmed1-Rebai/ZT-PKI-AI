@@ -1,7 +1,7 @@
 {
   "config": "D",
-  "measured": "2026-10-11T20:42:40Z",
-  "alice_allow_web": "10.8.0.10 timeout 10m expires 9m22s872ms",
+  "measured": "2026-11-21T08:05:42Z",
+  "alice_allow_web": "10.8.0.10 timeout 10m expires 9m56s296ms",
   "rights_expire": true,
   "reachable": 2,
   "violations": 0,

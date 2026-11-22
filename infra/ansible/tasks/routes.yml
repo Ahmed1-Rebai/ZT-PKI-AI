@@ -20,7 +20,7 @@
       Type=oneshot
       RemainAfterExit=yes
       {% for r in zt_routes %}
-      ExecStart=/bin/sh -c 'ip route replace {{ r }}'
+      ExecStart=-/bin/sh -c 'ip route replace {{ r }}'
       {% endfor %}
       # Lab address space is reachable ONLY via explicit routes (zones via the
       # gateway, VPN /32s via tun0). Without this, the provisioning NAT adapter
@@ -31,6 +31,31 @@
       [Install]
       WantedBy=multi-user.target
   register: zt_routes_unit
+
+# `vagrant up` re-configures the private NICs after every boot (ifdown/ifup or
+# `netplan apply`), which flushes the routes bound to them after zt-routes ran.
+# Re-apply the routes whenever an interface comes up (ifupdown on Debian,
+# networkd-dispatcher on Ubuntu). Each route line is non-fatal ("-" prefix), so a
+# NIC that is not up yet does not stop the others; the next up-event retries.
+- name: Hook directories for interface up-events
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: [/etc/network/if-up.d, /etc/networkd-dispatcher/routable.d]
+
+- name: Re-apply zt-routes when an interface comes up
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      # Re-apply the ZT lab routes: Vagrant re-ups the private NICs on every boot.
+      [ "${IFACE:-}" = lo ] && exit 0
+      systemctl --no-block restart zt-routes.service 2>/dev/null || true
+  loop: [/etc/network/if-up.d/zt-routes, /etc/networkd-dispatcher/routable.d/50-zt-routes]
 
 - name: Enable and (re)apply zt-routes
   ansible.builtin.systemd:

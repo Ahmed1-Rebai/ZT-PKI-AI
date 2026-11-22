@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# M2 scenario runner — executes S1..S6, S13, S14 against the lab and stores the
+# M2 scenario runner — executes S1..S6, S9, S10 against the lab and stores the
 # raw evidence under tests/evidence/<scenario>/. Reuses the same client profile
 # and controls the gateway enforces (docs/05, docs/06).
 #
-#   usage: tests/run-m2.sh [all|s1|s2|s3|s4|s5|s6|s13|s14]
+#   usage: tests/run-m2.sh [all|s1|s2|s3|s4|s5|s6|s9|s10]
 #
 # Preconditions: `make vpn` has run; sub-ca / zt-gw / client-lin are up.
 set -uo pipefail
@@ -12,9 +12,10 @@ INFRA="$REPO/infra"
 EVD="$REPO/tests/evidence"
 LABPASS="${PKI_PASS:-ZtLabCA-2026}"
 ONLY="${1:-all}"
-PASS=0; FAIL=0
+PASS=0; FAIL=0; SKIP=0
 ok(){ printf '  \033[32mPASS\033[0m  %s\n' "$1"; PASS=$((PASS+1)); }
 ko(){ printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAIL=$((FAIL+1)); }
+skip(){ printf '  \033[33mSKIP\033[0m  %s\n' "$1"; SKIP=$((SKIP+1)); }
 gssh(){ ( cd "$INFRA" && vagrant ssh "$1" -c "$2" 2>/dev/null ); }
 fetch(){ ( cd "$INFRA" && vagrant ssh "$1" -c "sudo cat '$2'" 2>/dev/null ); }
 run(){ [ "$ONLY" = all ] || [ "$ONLY" = "$1" ]; }
@@ -30,7 +31,7 @@ refresh_gw() {
 ro_copy(){ gssh client-lin 'sudo cp /etc/openvpn/client/alice.conf /tmp/alice.ro && sudo chmod 644 /tmp/alice.ro'; }
 
 mkdir -p "$EVD/s01_no_cert" "$EVD/s02_rogue_ca" "$EVD/s03_revoked" "$EVD/s04_expired" \
-         "$EVD/s05_scan_gw" "$EVD/s06_udp_dos" "$EVD/s13_mitm_gw" "$EVD/s14_pdp_down"
+         "$EVD/s05_scan_gw" "$EVD/s06_udp_dos" "$EVD/s09_mitm_gw" "$EVD/s10_pdp_down"
 
 # ---------------------------------------------------------------- S1
 if run s1; then
@@ -113,15 +114,20 @@ fi
 # ---------------------------------------------------------------- S5
 if run s5; then
   echo "== S5 — UDP/TCP scan of the gateway =="
+  if ! gssh client-lin 'command -v nmap >/dev/null'; then skip "S5 needs nmap on client-lin (not installed)"; else
   gssh client-lin 'sudo nmap -sS -p 1-1024 192.168.100.1 -oN /tmp/s5s.txt >/dev/null 2>&1; sudo nmap -sU --top-ports 50 192.168.100.1 -oN /tmp/s5u.txt >/dev/null 2>&1'
   { echo "### TCP scan (1-1024)"; fetch client-lin /tmp/s5s.txt;
     echo; echo "### UDP scan (top-50)"; fetch client-lin /tmp/s5u.txt; } > "$EVD/s05_scan_gw/nmap.txt"
-  grep -qE "open" "$EVD/s05_scan_gw/nmap.txt" && ok "S5 (see nmap.txt; 1194 expected silent)" || ok "S5 no port visible"
+  # Expected: no TCP port open; UDP/1194 at most "open|filtered" (tls-crypt stays silent)
+  if grep -qE "^[0-9]+/tcp[[:space:]]+open[[:space:]]" "$EVD/s05_scan_gw/nmap.txt"; then ko "S5 TCP port visible on the gateway (see nmap.txt)"
+  else ok "S5 no TCP port visible, UDP/1194 silent"; fi
+  fi
 fi
 
 # ---------------------------------------------------------------- S6
 if run s6; then
   echo "== S6 — UDP DoS on the VPN =="
+  if ! gssh client-lin 'command -v hping3 >/dev/null'; then skip "S6 needs hping3 on client-lin (not installed)"; else
   ro_copy
   gssh client-lin 'sudo timeout 12 hping3 --udp -p 1194 --flood -d 1000 192.168.100.1 >/tmp/s6.log 2>&1'
   fetch client-lin /tmp/s6.log | tail -n 8 > "$EVD/s06_udp_dos/hping3.txt"
@@ -132,11 +138,12 @@ if run s6; then
   echo "valid reconnect during/after flood -> ${VPNIP:-none}" >> "$EVD/s06_udp_dos/gateway-status.txt"
   gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; true' >/dev/null 2>&1
   grep -q "openvpn=active" "$EVD/s06_udp_dos/gateway-status.txt" && [ -n "$VPNIP" ] && ok "S6 service stable" || ko "S6 service stable"
+  fi
 fi
 
-# ---------------------------------------------------------------- S13
-if run s13; then
-  echo "== S13 — fake gateway (MITM) =="
+# ---------------------------------------------------------------- S9
+if run s9; then
+  echo "== S9 — fake gateway (MITM) =="
   ro_copy
   gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1; set -e; D=/tmp/fake; rm -rf $D; mkdir -p $D; cd $D
     openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 \
@@ -160,27 +167,38 @@ if run s13; then
     awk "/<cert>/{f=1} f{print} /<\/cert>/{f=0}" /tmp/alice.ro >> /tmp/mitm.conf
     awk "/<key>/{f=1} f{print} /<\/key>/{f=0}" /tmp/alice.ro >> /tmp/mitm.conf
     awk "/<tls-crypt>/{f=1} f{print} /<\/tls-crypt>/{f=0}" /tmp/alice.ro >> /tmp/mitm.conf'
-  gssh client-lin 'sudo timeout 12 openvpn --config /tmp/mitm.conf --connect-retry-max 2 --verb 4 >/tmp/s13.log 2>&1; sudo pkill -f "[f]ake.conf" 2>/dev/null; true'
-  fetch client-lin /tmp/s13.log > "$EVD/s13_mitm_gw/client.log"
-  fetch client-lin /tmp/fakesrv.log | tail -n 10 > "$EVD/s13_mitm_gw/fake-server.log"
-  grep -qE "VERIFY ERROR|self-signed|TLS Error|TLS handshake failed|unable to get" "$EVD/s13_mitm_gw/client.log" && ok "S13 client refused fake gateway" || ko "S13 client refused fake gateway"
+  gssh client-lin 'sudo timeout 12 openvpn --config /tmp/mitm.conf --connect-retry-max 2 --verb 4 >/tmp/s9.log 2>&1; sudo pkill -f "[f]ake.conf" 2>/dev/null; true'
+  fetch client-lin /tmp/s9.log > "$EVD/s09_mitm_gw/client.log"
+  fetch client-lin /tmp/fakesrv.log | tail -n 10 > "$EVD/s09_mitm_gw/fake-server.log"
+  grep -qE "VERIFY ERROR|self-signed|TLS Error|TLS handshake failed|unable to get" "$EVD/s09_mitm_gw/client.log" && ok "S9 client refused fake gateway" || ko "S9 client refused fake gateway"
 fi
 
-# ---------------------------------------------------------------- S14
-if run s14; then
-  echo "== S14 — PDP down => fail-closed =="
+# ---------------------------------------------------------------- S10
+if run s10; then
+  echo "== S10 — PDP down => fail-closed =="
   ro_copy
-  gssh zt-gw "sudo sed -i 's/^PDP_ENFORCE=.*/PDP_ENFORCE=1/' /etc/openvpn/zt/hook.env && sudo systemctl restart openvpn-server@server" >/dev/null 2>&1
-  sleep 2
-  gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1; sudo timeout 15 openvpn --config /tmp/alice.ro --connect-retry-max 1 --verb 4 >/tmp/s14.log 2>&1'
-  fetch client-lin /tmp/s14.log > "$EVD/s14_pdp_down/client.log"
-  fetch zt-gw /var/log/openvpn/openvpn.log | tail -n 15 > "$EVD/s14_pdp_down/gateway.log"
-  fetch zt-gw /etc/openvpn/zt/hook.env > "$EVD/s14_pdp_down/hook.env"
-  grep -qiE "AUTH|denied|VERIFY|TLS handshake failed" "$EVD/s14_pdp_down/client.log" "$EVD/s14_pdp_down/gateway.log" && ok "S14 fail-closed" || ko "S14 fail-closed"
-  gssh zt-gw "sudo sed -i 's/^PDP_ENFORCE=.*/PDP_ENFORCE=0/' /etc/openvpn/zt/hook.env && sudo systemctl restart openvpn-server@server" >/dev/null 2>&1
+  prev=$(gssh zt-gw "sudo grep -oP '^PDP_ENFORCE=\K.*' /etc/openvpn/zt/hook.env" | tr -d '\r')
+  if [ "$prev" != 1 ]; then
+    gssh zt-gw "sudo sed -i 's/^PDP_ENFORCE=.*/PDP_ENFORCE=1/' /etc/openvpn/zt/hook.env && sudo systemctl restart openvpn-server@server" >/dev/null 2>&1
+    sleep 2
+  fi
+  gssh zt-pdp "sudo docker stop zt-pdp-pdp-1 >/dev/null"            # the PDP really goes down
+  gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1; sudo timeout 15 openvpn --config /tmp/alice.ro --connect-retry-max 1 --verb 4 >/tmp/s10.log 2>&1'
+  fetch client-lin /tmp/s10.log > "$EVD/s10_pdp_down/client.log"
+  fetch zt-gw /var/log/openvpn/openvpn.log | tail -n 15 > "$EVD/s10_pdp_down/gateway.log"
+  fetch zt-gw /etc/openvpn/zt/hook.env > "$EVD/s10_pdp_down/hook.env"
+  gssh zt-pdp "sudo docker start zt-pdp-pdp-1 >/dev/null; for i in \$(seq 1 30); do sudo docker exec zt-pdp-pdp-1 true 2>/dev/null && break; sleep 1; done"
+  if [ -n "$prev" ] && [ "$prev" != 1 ]; then   # put the gateway back in the mode it was in
+    gssh zt-gw "sudo sed -i 's/^PDP_ENFORCE=.*/PDP_ENFORCE=$prev/' /etc/openvpn/zt/hook.env && sudo systemctl restart openvpn-server@server" >/dev/null 2>&1
+  fi
+  if grep -q "pdp-unreachable" "$EVD/s10_pdp_down/gateway.log" && ! grep -q "Initialization Sequence Completed" "$EVD/s10_pdp_down/client.log"; then
+    ok "S10 fail-closed (PDP down -> deny pdp-unreachable, no tunnel)"
+  else
+    ko "S10 fail-closed"
+  fi
 fi
 
-gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; true' >/dev/null 2>&1
+gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sudo systemctl restart openvpn-client@alice 2>/dev/null; true' >/dev/null 2>&1
 echo
-echo "== M2 summary: $PASS passed, $FAIL failed · evidence in tests/evidence/ =="
+echo "== M2 summary: $PASS passed, $FAIL failed, $SKIP skipped · evidence in tests/evidence/ =="
 [ "$FAIL" -eq 0 ]

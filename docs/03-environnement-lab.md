@@ -2,45 +2,42 @@
 
 ## 1. Prérequis matériels
 
-| Profil | CPU | RAM | Disque | Remarque |
+Le lab tourne sur une seule machine hôte Linux avec **VirtualBox 7.1 + Vagrant + Ansible** (`make tools` installe Vagrant et Ansible). Les VMs du lab consomment **≈ 18 Go de RAM** au total, `root-ca` restant éteinte ; prévoir un hôte avec au moins 8 cœurs et 32 Go de RAM pour garder de la marge. Les disques sont ceux des boxes Vagrant (allocation dynamique).
+
+L'hôte n'est pas un nœud de l'architecture : il sert de station d'administration (adresse 10.10.99.2 sur le réseau mgmt, tableau de bord Wazuh) et de machine d'entraînement des modèles IA sur son GPU.
+
+## 2. Machines virtuelles
+
+Définies dans `infra/Vagrantfile` (boxes `bento/debian-12` et `bento/ubuntu-22.04`), chacune provisionnée par son rôle Ansible (`infra/ansible/site.yml`).
+
+| VM | OS | vCPU | RAM | Rôle |
 |---|---|---|---|---|
-| **Complet** | 8 cœurs | 32 Go | 250 Go SSD | Toutes les VMs séparées |
-| **Léger** | 4–6 cœurs | 16 Go | 150 Go SSD | VMs fusionnées (voir §4) |
+| `root-ca` | Debian 12 | 1 | 512 Mo | Root CA **hors-ligne** (sans NIC interne, éteinte) |
+| `sub-ca` | Debian 12 | 1 | 1 Go | Issuing CA, CRL HTTP, répondeur OCSP |
+| `zt-gw` | Debian 12 | 2 | 2 Go | OpenVPN + nftables (5 NICs de zone + NIC miroir) |
+| `zt-pdp` | Debian 12 | 2 | 2 Go | PDP, OPA, Redis (Docker Compose) |
+| `zt-sensor` | Debian 12 | 2 | 3 Go | Suricata + NFStream + inférence IA (`zt-ai`) |
+| `siem` | Ubuntu 22.04 | 4 | 6 Go | Wazuh all-in-one |
+| `web-proxy` | Debian 12 | 1 | 1 Go | Nginx mTLS (DMZ) |
+| `web-app` | Debian 12 | 1 | 1 Go | Application Flask |
+| `db` | Debian 12 | 1 | 1 Go | PostgreSQL |
+| `client-lin` | Ubuntu 22.04 | 2 | 2 Go | Poste de l'utilisateur et machine de test des scénarios |
 
-Hyperviseur recommandé : **Proxmox VE** (bridges Linux/OVS, miroir de ports). Alternatives : VMware Workstation, VirtualBox, libvirt/KVM.
-
-## 2. Machines virtuelles (profil complet)
-
-| VM | OS | vCPU | RAM | Disque | Rôle |
-|---|---|---|---|---|---|
-| `root-ca` | Debian 12 | 1 | 512 Mo | 8 Go | Root CA **hors-ligne** (sans NIC, éteinte) |
-| `sub-ca` | Debian 12 | 1 | 1 Go | 10 Go | Issuing CA, OCSP |
-| `zt-gw` | Debian 12 | 2 | 2 Go | 16 Go | OpenVPN + nftables (5 NICs) |
-| `zt-pdp` | Debian 12 | 2 | 2 Go | 16 Go | PDP, OPA, Redis |
-| `zt-sensor` | Debian 12 | 2 | 2 Go | 20 Go | Suricata + NFStream |
-| `zt-ai` | Ubuntu 22.04 | 4 | 4 Go | 30 Go | Entraînement + inférence |
-| `siem` | Ubuntu 22.04 | 4 | 8 Go | 60 Go | Wazuh all-in-one |
-| `web-proxy` | Debian 12 | 1 | 1 Go | 8 Go | Nginx mTLS (DMZ) |
-| `web-app` | Debian 12 | 1 | 1 Go | 10 Go | Application métier |
-| `db` | Debian 12 | 1 | 1 Go | 10 Go | PostgreSQL |
-| `client-win` | Windows 10/11 | 2 | 4 Go | 40 Go | Client légitime |
-| `client-lin` | Ubuntu Desktop | 2 | 2 Go | 20 Go | Client légitime / compromis |
-| `kali` | Kali Linux | 2 | 4 Go | 40 Go | Attaquant |
-
-**Total ≈ 32 Go RAM** (profil complet).
+**Total ≈ 18 Go RAM.**
 
 ## 3. Réseaux virtuels
 
-| Bridge | Réseau | Usage |
+| Réseau VirtualBox | Plage | Usage |
 |---|---|---|
-| `vmbr-untrust` | 192.168.100.0/24 | Clients, attaquant, WAN de la gateway |
-| `vmbr-dmz` | 10.10.10.0/24 | Reverse proxy |
-| `vmbr-app` | 10.10.20.0/24 | Application |
-| `vmbr-data` | 10.10.30.0/24 | Base de données |
-| `vmbr-mgmt` | 10.10.99.0/24 | PKI, PDP, IA, sonde, SIEM |
+| intnet `zt-untrust` | 192.168.100.0/24 | Client, WAN de la gateway |
+| intnet `zt-dmz` | 10.10.10.0/24 | Reverse proxy |
+| intnet `zt-app` | 10.10.20.0/24 | Application |
+| intnet `zt-data` | 10.10.30.0/24 | Base de données |
+| host-only (mgmt) | 10.10.99.0/24 | PKI, PDP, sonde, SIEM ; l'hôte y prend 10.10.99.2 (`make mgmt-host`) |
+| intnet `zt-mirror` | 10.10.98.0/24 | Copie du trafic de la gateway (`tc mirred`) vers la sonde (promiscuous) |
 | *(logique)* `tun0` | 10.8.0.0/24 | Pool VPN (IP fixes par CN) |
 
-> Aucun bridge n'est relié à Internet pendant les tests d'attaque (NAT temporaire pour installer les paquets, puis retiré).
+> Les réseaux internes n'ont aucune route vers l'hôte ni vers Internet. Chaque VM garde l'adaptateur NAT de Vagrant (`eth0`) pour l'installation des paquets ; `make isolate` le détache avant les tests d'attaque, `make reconnect` le rattache.
 
 ## 4. Plan d'adressage
 
@@ -48,132 +45,77 @@ Hyperviseur recommandé : **Proxmox VE** (bridges Linux/OVS, miroir de ports). A
 |---|---|---|
 | `zt-gw` | WAN | 192.168.100.1 |
 | `zt-gw` | DMZ / App / Data / Mgmt | 10.10.10.1 / 10.10.20.1 / 10.10.30.1 / 10.10.99.1 |
+| `zt-gw` | miroir | 10.10.98.1 |
+| hôte | mgmt | 10.10.99.2 |
 | `sub-ca` | mgmt | 10.10.99.5 |
 | `zt-pdp` | mgmt | 10.10.99.10 |
-| `zt-ai` | mgmt | 10.10.99.11 |
-| `zt-sensor` | mgmt (+ NIC miroir) | 10.10.99.12 |
+| `zt-sensor` | mgmt + miroir | 10.10.99.12 / 10.10.98.12 |
 | `siem` | mgmt | 10.10.99.20 |
 | `web-proxy` | dmz | 10.10.10.10 |
 | `web-app` | app | 10.10.20.10 |
 | `db` | data | 10.10.30.10 |
-| `client-win` | untrust | 192.168.100.10 |
 | `client-lin` | untrust | 192.168.100.11 |
-| `kali` | untrust | 192.168.100.66 |
-| Clients VPN | tun0 | 10.8.0.10–10.8.0.250 (fixe par CN) |
-
-### Profil léger (16 Go)
-Fusionner : `sub-ca` + `zt-pdp` ; `zt-sensor` + `zt-ai` ; `web-proxy` + `web-app` + `db` (conteneurs) ; un seul client Linux + Kali.
+| Clients VPN | tun0 | 10.8.0.0/24, IP fixe par CN (`vpn/zt/ip-map.csv`) |
 
 ## 5. Versions logicielles
 
-| Logiciel | Version cible |
+| Logiciel | Version utilisée |
 |---|---|
-| OpenSSL | ≥ 3.0 |
-| OpenVPN | ≥ 2.6 |
-| nftables | ≥ 1.0 |
-| Suricata | ≥ 7.0 |
-| Python | 3.11 |
-| OPA | ≥ 0.60 |
-| Redis | ≥ 7 |
-| Wazuh | 4.x (dernière stable) |
-| Docker / Compose | ≥ 24 / v2 |
+| VirtualBox / Vagrant | 7.1 / paquet de la distribution de l'hôte |
+| OpenSSL | 3.0 (Debian 12) |
+| OpenVPN | 2.6 |
+| nftables | 1.0 (Debian 12) |
+| Suricata | 7 (bookworm-backports) |
+| Python | 3.11 (Debian 12) |
+| OPA | 0.70.0 (`openpolicyagent/opa:0.70.0-static`) |
+| Redis | 7.4 (`redis:7.4-alpine`) |
+| Wazuh | 4.14.8 |
+| Docker Compose | v2.29.7 (plugin installé sur `zt-pdp`) |
 
-## 6. Préparation commune (toutes les VMs Linux)
+## 6. Préparation commune (rôle Ansible `common`)
 
-```bash
-sudo apt update && sudo apt -y upgrade
-sudo apt -y install chrony curl git vim auditd ca-certificates
-sudo timedatectl set-timezone Africa/Tunis
-# SSH : clés uniquement
-sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-sudo systemctl restart ssh
-```
+Appliquée à toutes les VMs :
 
-> **NTP indispensable** : validité des certificats et corrélation des logs dépendent de l'heure. Faire pointer `chrony` vers `zt-gw` ou un serveur interne.
+- fuseau horaire `Africa/Tunis` ;
+- paquets de base : `chrony curl git vim auditd ca-certificates python3` ;
+- `chrony` reçoit `server 10.10.99.1 iburst` (zt-gw) en plus de ses sources par défaut ; `zt-gw` n'est pas configuré comme serveur NTP, donc la synchronisation passe en pratique par les sources par défaut tant que le NAT est attaché ;
+- authentification SSH par mot de passe désactivée (`PasswordAuthentication no`) ;
+- sysctl `/etc/sysctl.d/90-zt.conf` : `rp_filter = 1`, pas de redirections ICMP, `tcp_syncookies = 1`.
 
-## 7. Gateway : installation de base
+> L'heure compte : la validité des certificats et la corrélation des journaux en dépendent.
 
-```bash
-sudo apt -y install openvpn nftables easy-rsa python3-venv netcat-openbsd
-# Routage
-cat <<'SYS' | sudo tee /etc/sysctl.d/90-zt.conf
-net.ipv4.ip_forward = 1
-net.ipv4.conf.all.rp_filter = 1
-net.ipv4.conf.all.accept_redirects = 0
-net.ipv4.conf.all.send_redirects = 0
-net.ipv4.tcp_syncookies = 1
-SYS
-sudo sysctl --system
-sudo systemctl enable nftables
-```
+## 7. Gateway : installation de base (rôle `gateway`)
 
-## 8. Services Python (PDP / IA) en Docker Compose
+- paquets : `openvpn nftables openssl netcat-openbsd python3` ;
+- `net.ipv4.ip_forward = 1` ;
+- configuration OpenVPN, matériel PKI copié depuis `sub-ca`, clé `tls-crypt`, hooks Python du PDP, table d'IP fixes ;
+- compte restreint `ztpdp` dont la clé SSH ne peut lancer que `ztpdp-nft` (commande forcée) ;
+- jeu de règles `firewall/nftables.conf`.
 
-`infra/docker-compose.yml`
+## 8. Plan de contrôle en Docker Compose (`zt-pdp`)
 
-```yaml
-services:
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    networks: [zt]
-  opa:
-    image: openpolicyagent/opa:latest
-    command: ["run", "--server", "--addr=:8181", "/policies"]
-    volumes: ["../pdp/policies:/policies:ro"]
-    networks: [zt]
-  pdp:
-    build: ../pdp
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - OPA_URL=http://opa:8181
-      - PDP_TLS_CERT=/certs/pdp.crt
-      - PDP_TLS_KEY=/certs/pdp.key
-      - PDP_CA=/certs/ca-chain.crt
-    volumes: ["./certs:/certs:ro"]
-    ports: ["8443:8443"]
-    depends_on: [redis, opa]
-    networks: [zt]
-networks:
-  zt: {}
-```
+`infra/docker-compose.yml` est déployé sur `zt-pdp` par le rôle `pdp` (code dans `/opt/zt-pdp/app`). Il contient trois services sur un réseau bridge `control` :
 
-`infra/requirements.txt`
+| Service | Image | Détails |
+|---|---|---|
+| `redis` | `redis:7.4-alpine` | AOF activé, volume `redis-data` |
+| `opa` | `openpolicyagent/opa:0.70.0-static` | `authz.rego` + `data.json` montés en lecture seule |
+| `pdp` | construit depuis `pdp/Dockerfile` | écoute sur `10.10.99.10:8443` ; montages `/etc/zt-pdp/certs` → `/run/certs` (ro), `/etc/zt-pdp/ssh` → `/run/secrets` (ro), `/var/log/zt-pdp` ; variables dans `/etc/zt-pdp/pdp.env` |
 
-```
-fastapi
-uvicorn[standard]
-redis
-httpx
-pydantic
-pyyaml
-pandas
-numpy
-scikit-learn
-torch
-nfstream
-shap
-joblib
-matplotlib
-pytest
-```
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r infra/requirements.txt
-```
+Le moteur IA ne tourne pas dans Compose : son inférence est un service systemd `zt-ai` sur `zt-sensor` (rôle `sensor`). L'entraînement se fait sur l'hôte, dans un `.venv` préparé par `make ai` à partir de `infra/requirements.txt`.
 
 ## 9. Reproductibilité
 
-- **Snapshots** après chaque jalon (`base`, `pki-ok`, `vpn-ok`, `pdp-ok`, `ai-ok`).
-- Scripts Ansible (`infra/ansible/`) ou Vagrantfile pour recréer les VMs.
-- Fichier `Makefile` : `make pki`, `make vpn`, `make pdp`, `make ai`, `make tests`.
+- `infra/Vagrantfile` + rôles Ansible (`infra/ansible/`) recréent toutes les VMs.
+- Démarrage par étapes depuis `infra/` : `make core detection workloads client` (`make up` démarrerait aussi `root-ca`).
+- Autres cibles du `Makefile` : `provision`, `vpn`, `vpn-check`, `ai`, `mgmt-host`, `scenarios`, `abcd`, `perf`, `isolate`, `reconnect`, `status`, `halt`, `destroy`, `lint`.
 
 ## 10. Vérification de l'environnement
 
 | Test | Commande | Attendu |
 |---|---|---|
-| Isolation | `ping 10.10.30.10` depuis `kali` | Échec |
+| Isolation | `ping 10.10.30.10` depuis `client-lin` (hors tunnel) | Échec |
 | Routage gateway | `ping 10.10.20.10` depuis `zt-gw` | OK |
 | Heure | `chronyc tracking` | Écart < 1 s |
-| Services | `docker compose ps` | Tous *running* |
+| Plan de contrôle | `docker compose ps` sur `zt-pdp` | `redis`, `opa`, `pdp` *running* |
+| VPN | `make vpn-check` | Contrôles OK |

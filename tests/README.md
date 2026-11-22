@@ -1,13 +1,13 @@
 # tests/
 
-Attack scenarios, benign traffic generation, orchestration and evidence (see [docs/09](../docs/09-tests-et-scenarios.md)).
+Attack scenarios, A/B/C/D benchmark, performance measurements and evidence (see [docs/09](../docs/09-tests-et-scenarios.md)).
 
 ```
 tests/
-├── scenarios/      # one test sheet (.md) per scenario S1-S17
+├── scenarios/      # one test sheet (.md) per scenario (12 scenarios)
 ├── evidence/       # screenshots, logs, pcaps attached as proof (per scenario)
-├── run-m2.sh       # runs the M2 VPN/gateway scenarios (S1-S6, S13, S14) from client-lin + collects evidence
-├── run-redteam.sh  # runs the M5/M7 Red Team scenarios (S7-S12, S15-S17) from client-lin + collects evidence
+├── run-m2.sh       # connection-time scenarios (S1-S6, S9, S10) played from client-lin + evidence
+├── run-redteam.sh  # post-connection scenarios (S7, S8, S11, S12) played from client-lin + evidence
 ├── abcd/           # set-config.sh A|B|C|D, probe.sh (exposed surface), attack-abcd.sh (attack comparison), run-all.sh
 ├── perf/           # perf.sh (plain/tunnel/full ZT), perf-abcd.sh (same path per config)
 └── reports/        # JSON results, make_report.py -> results.md + charts/, perf.md (analysis)

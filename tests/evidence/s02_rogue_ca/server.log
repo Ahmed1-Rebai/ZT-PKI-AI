@@ -1,12 +1,12 @@
-UDPv4 link remote: [AF_UNSPEC]
-UID set to nobody
-GID set to nogroup
-Capabilities retained: CAP_NET_ADMIN
-MULTI: multi_init called, r=256 v=256
-IFCONFIG POOL IPv4: base=10.8.0.2 size=253
-IFCONFIG POOL LIST
-Initialization Sequence Completed
-192.168.100.11:1194 VERIFY ERROR: depth=0, error=unable to get local issuer certificate: CN=eve@lab.local, serial=15676509442724582281675619146954136125371236419
+OPTIONS IMPORT: reading client specific options from: /tmp/openvpn_cc_734213673499716940b5fec87a207361.tmp
+MULTI: Learn: 10.8.0.10 -> alice@lab.local/192.168.100.11:53077
+MULTI: primary virtual IP for alice@lab.local/192.168.100.11:53077: 10.8.0.10
+SENT CONTROL [alice@lab.local]: 'PUSH_REPLY,route 10.10.10.10 255.255.255.255,route 10.10.20.10 255.255.255.255,route 10.10.99.10 255.255.255.255,route 10.10.99.30 255.255.255.255,route-gateway 10.8.0.1,topology subnet,ping 10,ping-restart 60,ifconfig 10.8.0.10 255.255.255.0,peer-id 1,cipher AES-256-GCM' (status=1)
+alice@lab.local/192.168.100.11:53077 Data Channel: cipher 'AES-256-GCM', peer-id: 0
+alice@lab.local/192.168.100.11:53077 Timers: ping 10, ping-restart 120
+alice@lab.local/192.168.100.11:53077 Protocol options: explicit-exit-notify 1
+alice@lab.local/192.168.100.11:53077 PUSH: Received control message: 'PUSH_REQUEST'
+192.168.100.11:1194 VERIFY ERROR: depth=0, error=unable to get local issuer certificate: CN=eve@lab.local, serial=239142628954373769341705279971605409746009472681
 192.168.100.11:1194 Sent fatal SSL alert: unknown CA
 192.168.100.11:1194 OpenSSL: error:0A000086:SSL routines::certificate verify failed:
 192.168.100.11:1194 TLS_ERROR: BIO read tls_read_plaintext error

@@ -1,0 +1,11 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.17, pytest-9.1.1, pluggy-1.6.0 -- /mnt/data/i2/sec/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /mnt/data/i2/sec
+collecting ... collected 3 items
+
+ai/tests/test_registry.py::test_trained_bundle_verifies_and_loads PASSED [ 33%]
+ai/tests/test_registry.py::test_tampered_artefact_is_refused PASSED      [ 66%]
+ai/tests/test_registry.py::test_missing_artefact_is_refused PASSED       [100%]
+
+============================== 3 passed in 3.29s ===============================

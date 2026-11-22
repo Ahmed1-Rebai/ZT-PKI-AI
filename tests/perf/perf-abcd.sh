@@ -9,7 +9,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/tests/reports"; mkdir -p "$OUT"
 SW="$REPO/tests/abcd/set-config.sh"
 cd "$REPO/infra"
-vs() { local vm="$1"; shift; timeout 180 vagrant ssh "$vm" -c "$*" 2>/dev/null; }
+vs() { local vm="$1"; shift; timeout 180 vagrant ssh "$vm" -c "$*" </dev/null 2>/dev/null; }
 mirror() {  # mirror on|off — the tc filters live on the zone NICs, not in the unit
   if [[ "$1" == on ]]; then vs zt-gw "sudo systemctl restart zt-mirror"
   else vs zt-gw ". /etc/default/zt-mirror; for i in \$SRC_IFACES; do sudo tc qdisc del dev \$i ingress 2>/dev/null; sudo tc qdisc del dev \$i root 2>/dev/null; done; true"; fi

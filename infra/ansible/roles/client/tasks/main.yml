@@ -7,7 +7,7 @@
 - name: Lab routes guard (internal space only via the tunnel)
   ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/routes.yml"
 
-- name: Install OpenVPN client and Red Team test packages
+- name: Install the OpenVPN client and the test tools (nmap for S5, hping3 for S6, iperf3 for perf)
   ansible.builtin.apt:
     name:
       - openvpn
@@ -15,7 +15,6 @@
       - curl
       - nmap
       - hping3
-      - hydra
       - dnsutils
       - netcat-openbsd
       - iperf3
@@ -53,7 +52,7 @@
 # --- Posture agent (M6 · docs/06 §8) ---------------------------------------
 # Reports {cn, score, detail} to the PDP over mTLS every 60 s. The managed
 # marker + host firewall make this lab client compliant (score 1.0); an
-# unmanaged device (e.g. a stolen cert on another machine, S12) scores lower.
+# unmanaged device (e.g. a stolen cert on another machine, S8) scores lower.
 
 - name: Install posture prerequisites (host firewall)
   ansible.builtin.apt:

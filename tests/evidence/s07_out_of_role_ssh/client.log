@@ -1,0 +1,2 @@
+ssh: connect to host 10.10.20.10 port 22: Connection timed out
+SSH_EXIT=255

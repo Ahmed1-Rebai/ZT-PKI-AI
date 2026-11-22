@@ -1,153 +1,152 @@
-# 🛡️ ZT-PKI-AI — Architecture Zero Trust (PKI + VPN) avec détection d'anomalies par IA
+# ZT-PKI-AI
 
-> **Conception et mise en œuvre d'une architecture Zero Trust basée sur PKI et VPN avec détection intelligente des anomalies réseau par Intelligence Artificielle**
+**Accès distant Zero Trust fondé sur la PKI, avec vérification continue du trafic par apprentissage automatique, sans déchiffrement.**
 
----
+ZT-PKI-AI remplace le modèle « VPN périmétrique », où un utilisateur authentifié joint tout le réseau interne, par un accès accordé ressource par ressource, pour une durée limitée et réévalué en continu. L'ensemble tourne dans un laboratoire de dix machines virtuelles entièrement décrit en code (Vagrant + Ansible), reproductible à partir de ce dépôt.
 
-## 1. Résumé
+| | VPN périmétrique | ZT-PKI-AI |
+|---|---|---|
+| Services joignables par un employé authentifié | 7 / 7 | **2 / 7** |
+| Durée d'un droit d'accès | permanente | **10 min, renouvelée si la confiance tient** |
+| Certificat volé utilisé sur un poste non conforme | accès conservé | **quarantaine** |
+| Panne du moteur de décision | sans effet | **accès fermé (fail-closed)** |
+| Surveillance du trafic | déchiffrement, ou rien | **métadonnées de flux uniquement** |
+| Surcoût sur le débit | — | **aucun mesurable** |
 
-Ce projet construit, dans un laboratoire virtualisé, une **infrastructure Zero Trust complète et fonctionnelle** :
+## Fonctionnalités
 
-1. **Identité forte** : une PKI à deux niveaux (Root CA hors-ligne + Issuing CA) délivre des certificats X.509 courts aux utilisateurs, machines et services.
-2. **Accès conditionnel** : un VPN (OpenVPN, mTLS + TLS 1.3) ne donne accès qu'à une *surface minimale* ; chaque connexion est évaluée par un **moteur de décision (PDP)** avant d'ouvrir le moindre flux.
-3. **Micro-segmentation** : le pare-feu (nftables) applique le principe *deny-by-default* ; les autorisations sont **dynamiques, à durée limitée (TTL)** et basées sur l'identité, pas sur l'IP.
-4. **Vérification continue par IA** : les flux réseau sont analysés en temps réel (Isolation Forest, Autoencodeur, Random Forest, analyse comportementale par entité). Le **score d'anomalie alimente un score de confiance** qui peut **réduire les droits, mettre en quarantaine ou révoquer le certificat** automatiquement.
-5. **Observabilité** : Suricata + Wazuh centralisent logs, alertes et décisions Zero Trust.
+- **Identité X.509 de bout en bout** : PKI à deux niveaux (racine ECDSA P-384 hors ligne, autorité émettrice `pathlen:0`), certificats utilisateurs courts (7 jours), profils EKU séparés, CRL et OCSP.
+- **Une seule porte d'entrée** : OpenVPN 2.6 en TLS 1.3 avec authentification mutuelle, `tls-crypt` (le port reste muet sans la clé), ECDHE et AES-256-GCM.
+- **Décision par session** : un PDP (FastAPI, Open Policy Agent, Redis) calcule un score de confiance à partir de l'identité, de la posture du poste et du comportement réseau, en 20,8 ms (médiane).
+- **Droits à durée de vie** : la passerelle nftables refuse tout par défaut ; chaque autorisation est une entrée d'ensemble avec TTL qui disparaît si elle n'est pas renouvelée.
+- **Vérification continue sans lecture du contenu** : la sonde extrait 47 statistiques par flux (NFStream) ; trois modèles fusionnés (Isolation Forest, autoencodeur, Random Forest) notent chaque flux. Une alerte critique retire l'accès en moins de 0,5 s.
+- **Supervision centralisée** : Suricata et Wazuh 4.14, règles de corrélation dédiées (100100–100161) associées à MITRE ATT&CK, surveillance d'intégrité des fichiers critiques.
 
-**Idée centrale** : *ne jamais faire confiance, toujours vérifier — et vérifier en continu grâce à l'IA, pas seulement à la connexion.*
-
-## 2. Pourquoi ce projet est « réel » et techniquement solide
-
-| Dimension | Ce qui est réellement mis en œuvre |
-|---|---|
-| Cryptographie / PKI | Root offline, Intermediate, profils de certificats, CRL, OCSP, rotation, révocation |
-| Réseau | Segmentation multi-zones, routage/pare-feu nftables dynamique, tunnel TLS 1.3 |
-| Architecture | Modèle NIST SP 800-207 : PE / PA / PEP, plan de contrôle vs plan de données |
-| Développement | PDP en Python (FastAPI) + OPA (Rego), hooks OpenVPN, agent de posture |
-| Data science | Pipeline complet : extraction de features, entraînement, évaluation, dérive, explicabilité |
-| SecOps | IDS, SIEM, règles de corrélation, réponse automatisée (SOAR-like) |
-| Validation | Scénarios d'attaque mappés MITRE ATT&CK, métriques mesurables (TTD, TTQ, FPR, overhead) |
-
-## 3. Vue d'ensemble
+## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph UNTRUSTED[Zone non fiable 192.168.100.0/24]
-    C[client-lin : Client X.509<br/>+ agent de posture]
-    A[client-lin / Kali : Red Team<br/>Scénarios S1–S17]
+  subgraph UNTRUSTED[Zone non fiable]
+    C[client-lin<br/>certificat X.509 + agent de posture]
   end
-  subgraph CORE[Plan de contrôle & sécurité 10.10.99.0/24]
-    GW[Gateway VPN / PEP<br/>OpenVPN 2.6 + nftables TTL]
-    PDP[PDP : FastAPI + OPA + Redis<br/>Trust Engine 19.1 ms]
-    CA[Root CA offline + Sub-CA<br/>CRL HTTP + OCSP :2560]
-    SENS[Sonde zt-sensor<br/>Suricata 7 + NFStream]
-    AI[Moteur IA : IF + AE + RF<br/>Stacking F1 0.9943 · 11.6 ms]
-    SIEM[Wazuh SIEM 4.14.8<br/>Règles 100100–100161 + FIM]
+  subgraph MGMT[Plan de contrôle · 10.10.99.0/24]
+    PDP[zt-pdp<br/>FastAPI + OPA + Redis]
+    CA[sub-ca<br/>CRL + OCSP]
+    SENS[zt-sensor<br/>Suricata + NFStream + modèles]
+    SIEM[siem<br/>Wazuh]
   end
   subgraph RES[Ressources protégées]
-    PX[Reverse proxy Nginx mTLS<br/>DMZ 10.10.10.10:443]
-    APP[Application web Flask<br/>App 10.10.20.10:8080]
-    DB[(PostgreSQL<br/>Data 10.10.30.10:5432)]
+    PX[web-proxy<br/>Nginx mTLS]
+    APP[web-app<br/>Flask]
+    DB[(db<br/>PostgreSQL)]
   end
-  C -- mTLS TLS 1.3 --> GW
-  A -. attaques S1–S17 .-> GW
+  C -- TLS 1.3 mTLS --> GW[zt-gw<br/>OpenVPN + nftables]
   GW <--> PDP
   PDP --> CA
   GW --> PX --> APP --> DB
-  GW -. tc mirred .-> SENS --> AI
-  AI -- POST /v1/events --> PDP
-  PDP -- ztpdp-nft / kill 356 ms --> GW
+  GW -. copie du trafic .-> SENS
+  SENS -- score d'anomalie --> PDP
+  PDP -- allow / quarantine / kill --> GW
   GW & PDP & SENS & PX --> SIEM
 ```
 
-## 4. Stack technique
+La passerelle `zt-gw` est le seul point de passage entre les zones. Le PDP y pose des droits via un compte SSH sans privilège limité à une commande forcée (`allow`, `quarantine`, `clear`, `kill`). L'autorité racine `root-ca` reste éteinte et n'a aucune interface réseau interne.
 
-`OpenSSL 3 (ECDSA P-384 / P-256)` · `OpenVPN 2.6 (TLS 1.3 + tls-crypt)` · `nftables (sets dynamiques à TTL)` · `Suricata 7 (46k règles)` · `NFStream (47 features)` · `Python 3.11+` · `FastAPI` · `OPA (Rego)` · `Redis` · `scikit-learn` · `PyTorch 2.11 (CUDA 12.8)` · `SHAP` · `Wazuh 4.14.8` · `Docker Compose` · `VirtualBox 7.1 (virtio)` · `Vagrant` · `Ansible` · `Debian 12 / Ubuntu 22.04`
+Score de confiance : `S = 100 × (0,30·I + 0,25·D + 0,15·C + 0,30·(1 − A))`
 
-## 5. Structure du dépôt
-
-```text
-sec/
-├── README.md
-├── RULES-OF-ENGAGEMENT.md  # cadre d'engagement et périmètre d'isolation des tests
-├── TODO.md                 # suivi d'avancement par jalon (M1–M8)
-├── TODO_REDTEAM.md         # runbook d'exécution des scénarios Red Team & A/B/C/D
-├── docs/
-│   ├── 01-cadrage-et-modele-de-menaces.md
-│   ├── 02-architecture.md
-│   ├── 03-environnement-lab.md
-│   ├── 04-pki.md
-│   ├── 05-vpn.md
-│   ├── 06-zero-trust-pdp-pep.md
-│   ├── 07-detection-ia.md
-│   ├── 08-supervision-siem.md
-│   ├── 09-tests-et-scenarios.md
-│   ├── 10-planning-livrables.md
-│   └── 12-machines.md
-├── pki/                    # configs OpenSSL (Root P-384 offline + Sub-CA), CRL HTTP, OCSP
-├── vpn/                    # server.conf, profils clients .ovpn, hooks Python fail-closed
-├── firewall/               # nftables.conf (deny-by-default + sets TTL), helpers ztpdp-nft/ssh
-├── pdp/                    # API FastAPI, Trust Engine, politiques OPA/Rego, cache Redis, tests
-├── ai/                     # schéma 47 features, entraînement GPU, registre SHA-256, inférence live
-├── sensor/                 # miroir réseau tc mirred, règles locales Suricata
-├── siem/                   # règles de corrélation Wazuh (100100–100161) et dashboards
-├── apps/                   # reverse proxy Nginx mTLS, app web Flask, PostgreSQL, agent de posture
-├── tests/                  # fiches S01–S17, run-m2.sh, run-redteam.sh, abcd/, perf/, reports/
-└── infra/                  # Vagrantfile (10 VMs), Ansible (site.yml + 13 rôles), docker-compose, Makefile
-```
-
-## 6. Index de la documentation
-
-| # | Document | Contenu |
-|---|---|---|
-| 01 | [Cadrage & menaces](docs/01-cadrage-et-modele-de-menaces.md) | Problématique, objectifs, hypothèses H1–H4, STRIDE |
-| 02 | [Architecture](docs/02-architecture.md) | Composants, flux, décisions d'architecture NIST SP 800-207 |
-| 03 | [Environnement](docs/03-environnement-lab.md) | VMs, réseaux internes, plan d'adressage, durcissement |
-| 04 | [PKI](docs/04-pki.md) | Hiérarchie 2 niveaux, profils X.509, cérémonies, CRL & OCSP |
-| 05 | [VPN](docs/05-vpn.md) | Configuration OpenVPN 2.6, `tls-crypt`, hooks fail-closed |
-| 06 | [Zero Trust PDP/PEP](docs/06-zero-trust-pdp-pep.md) | Politique Rego, Trust Score, `nftables` dynamique à TTL |
-| 07 | [Détection IA](docs/07-detection-ia.md) | Schéma 47 features, IF/AE/RF + Stacking, SHAP, registre signé |
-| 08 | [Supervision](docs/08-supervision-siem.md) | Suricata 7, Wazuh 4.14.8, FIM, règles de corrélation |
-| 09 | [Tests & Scénarios](docs/09-tests-et-scenarios.md) | Scénarios S1–S17 mappés MITRE ATT&CK, protocole A/B/C/D |
-| 10 | [Planning & Livrables](docs/10-planning-livrables.md) | Roadmap, jalons M1–M8, scénario de démonstration |
-| 12 | [Machines du lab](docs/12-machines.md) | Rôle détaillé, ressources et dimensionnement des 10 VMs + hôte GPU |
-
-## 7. Critères de réussite (KPI) & Résultats mesurés
-
-| Indicateur | Cible | Résultat mesuré | Référence |
+| Score | Palier | Durée de vie | Effet |
 |---|---|---|---|
-| Connexion sans certificat valide (S1, S2, S4) | 100 % refusée | **100 % refusée** | `tests/evidence/s01..s04/` |
-| Certificat révoqué (S3) | Refusé en < 60 s | **Refusé en < 60 s** (CRL + révocation PDP immédiate) | `tests/evidence/s03_revoked/` |
-| Panne du PDP (S14 — Fail-Closed) | 0 accès accordé | **100 % bloqué** (`PDP_ENFORCE=1`) | `tests/evidence/s14_pdp_down/` |
-| Détection IA (F1, test split CIC-IDS2017 dédupliqué) | ≥ 0,95 | **F1 = 0,9943** (ROC-AUC 0,9999) | [`ai/reports/metrics.md`](ai/reports/metrics.md) |
-| Taux de faux positifs IA (FPR) | ≤ 2 % | **0,16 %** (11,6 ms/flux sur CPU) | [`ai/reports/metrics.md`](ai/reports/metrics.md) |
-| Latence de décision PDP (`/v1/authenticate`) | ≤ 500 ms | **19,1 ms** (médiane) | [`tests/reports/perf.md`](tests/reports/perf.md) |
-| Boucle fermée IA → PDP → PEP (TTQ) | ≤ 15 s | **356 ms** (réaction PDP + enforcement `nftables`) | [`tests/reports/perf.md`](tests/reports/perf.md) |
-| Surcharge des contrôles ZT (B/C/D vs A, même chemin) | ≤ 15 % | **≤ 6,8 %** | [`tests/reports/results.md`](tests/reports/results.md) |
-| Surface exposée depuis un tunnel employé (A vs B/C/D) | 0 violation ZT | **A : 5 violations (7/7) → B/C/D : 0 violation (2/7)** | [`tests/reports/results.md`](tests/reports/results.md) |
+| ≥ 80 | complet | 10 min | droits du rôle |
+| 50 – 79 | restreint | 2 min | web uniquement |
+| 20 – 49 | quarantaine | 30 min | canal de posture uniquement |
+| < 20 | révoqué | — | règles retirées, tunnel coupé |
 
-## 8. Démarrage rapide & Commandes utiles
+## Démarrage rapide
+
+**Prérequis** : hôte Linux avec environ 18 Go de RAM disponibles, VirtualBox 7.1 (la 7.0 duplique des trames sur les réseaux internes), Vagrant, Ansible. Les modules KVM doivent être déchargés pendant l'utilisation de VirtualBox.
 
 ```bash
-# 1. Déployer et provisionner le laboratoire (Vagrant + Ansible)
-make -C infra up
-make -C infra mgmt-host              # configure l'IP 10.10.99.2 sur l'hôte (moteur IA)
-make -C infra vpn                    # synchronise la PKI, déploie zt-gw et client-lin
-make -C infra vpn-check              # vérifie les contrôles M2/M3 (9/9 PASS)
+git clone https://github.com/Ahmed1-Rebai/ZT-PKI-AI.git && cd ZT-PKI-AI
+sudo modprobe -r kvm_amd kvm           # kvm_intel sur processeur Intel
 
-# 2. Exécuter les tests unitaires (PDP + IA)
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest ai/tests
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=pdp python3 -m pytest pdp/tests
-
-# 3. Lancer les scénarios d'attaque Red Team depuis client-lin (S1–S17)
-bash tests/run-m2.sh                 # S1–S6, S13, S14 (attaquant externe / passerelle)
-bash tests/run-redteam.sh            # S7–S12, S15–S17 (post-connexion, posture, IA, FIM)
-
-# 4. Évaluation comparative A / B / C / D et génération des rapports/graphiques
-bash tests/abcd/run-all.sh && bash tests/abcd/attack-abcd.sh
-bash tests/perf/perf.sh && bash tests/perf/perf-abcd.sh
+cd infra
+make tools                             # Vagrant + Ansible (Debian/Ubuntu)
+make core detection workloads client   # 9 VM ; root-ca reste éteinte
+make mgmt-host                         # accès au tableau de bord Wazuh : https://10.10.99.20
+make vpn && make vpn-check             # PKI synchronisée, passerelle et poste client déployés
 ```
 
-## 9. ⚠️ Éthique et légalité
+Se connecter avec l'identité de test :
 
-Toutes les attaques sont réalisées **uniquement dans le laboratoire isolé** (réseaux host-only/internes, sans accès Internet pour les VMs d'attaque). Aucun outil offensif ne doit être utilisé hors de ce périmètre.
+```bash
+vagrant ssh client-lin
+sudo systemctl start openvpn-client@alice
+M="--cert /etc/zt-client/client.crt --key /etc/zt-client/client.key --cacert /etc/zt-client/ca-chain.crt"
+sudo curl -s $M https://10.10.10.10/api/whoami
+```
+
+La construction complète depuis zéro (cérémonie PKI, entraînement des modèles) est décrite dans [`pki/README.md`](pki/README.md), [`ai/README.md`](ai/README.md) et [`infra/README.md`](infra/README.md).
+
+## Validation
+
+```bash
+make -C infra isolate          # coupe l'accès Internet des VM pendant les tests
+make -C infra scenarios        # 12 scénarios d'attaque, joués depuis client-lin
+make -C infra abcd             # benchmark A/B/C/D
+make -C infra perf             # latences et débits
+make -C infra reconnect
+```
+
+Chaque scénario affiche `PASS` ou `FAIL` après un contrôle réel et dépose ses journaux dans [`tests/evidence/`](tests/evidence/).
+
+| Scénario | Attaque | Résultat |
+|---|---|---|
+| S1 – S4 | sans certificat, autorité inconnue, certificat révoqué, expiré | refusé à la poignée de main |
+| S5 – S6 | scan, inondation UDP du port VPN | aucune réponse, service maintenu |
+| S7 | SSH hors rôle depuis un tunnel valide | rejeté et journalisé (`ZT-DROP`) |
+| S8 | certificat valide sur un poste non conforme | quarantaine |
+| S9 | fausse passerelle | refusée par le client |
+| S10 | moteur de décision arrêté | aucun tunnel (fail-closed) |
+| S11 | modification des règles du pare-feu | alerte Wazuh 100160 |
+| S12 | modèle d'IA altéré | refusé par le manifeste SHA-256 |
+
+**Benchmark** : le même laboratoire est reconfiguré en VPN classique (A), Zero Trust statique (B), PDP dynamique (C) et PDP + IA (D). A expose 7 services dont 5 violations ; B, C et D n'en exposent que 2. Seuls C et D mettent en quarantaine un certificat volé utilisé sur un poste non conforme. Débits de 27 à 35 Mb/s dans les quatre configurations : pas de surcoût mesurable. Détails : [`tests/reports/results.md`](tests/reports/results.md), [`tests/reports/perf.md`](tests/reports/perf.md).
+
+**Détection** : F1 0,9943, 0,16 % de faux positifs, 11,6 ms par flux sur CPU, mesurés sur la partie test de CIC-IDS2017 dédupliqué ([`ai/reports/metrics.md`](ai/reports/metrics.md)). Dans le laboratoire, la boucle de réaction a été validée avec une alerte critique simulée.
+
+## Structure du dépôt
+
+```text
+├── pki/        PKI OpenSSL : racine hors ligne, autorité émettrice, CRL, OCSP
+├── vpn/        OpenVPN 2.6, hooks Python fail-closed, profils clients
+├── firewall/   nftables (refus par défaut, ensembles à TTL), commande forcée ztpdp-nft
+├── pdp/        moteur de décision : API FastAPI, score de confiance, politiques Rego
+├── ai/         caractéristiques, entraînement, registre signé SHA-256, inférence
+├── sensor/     copie du trafic (tc mirred), règles Suricata locales
+├── siem/       règles de corrélation et tableaux de bord Wazuh
+├── apps/       proxy Nginx mTLS, application Flask, PostgreSQL, agent de posture
+├── tests/      scénarios, benchmark A/B/C/D, performances, preuves d'exécution
+├── infra/      Vagrantfile (10 VM), Ansible (13 rôles), docker-compose, Makefile
+└── docs/       documentation de conception
+```
+
+## Documentation
+
+| Sujet | Document |
+|---|---|
+| Modèle de menaces | [docs/01-cadrage-et-modele-de-menaces.md](docs/01-cadrage-et-modele-de-menaces.md) |
+| Architecture (NIST SP 800-207) | [docs/02-architecture.md](docs/02-architecture.md) |
+| Laboratoire et réseaux | [docs/03-environnement-lab.md](docs/03-environnement-lab.md) · [docs/12-machines.md](docs/12-machines.md) |
+| PKI | [docs/04-pki.md](docs/04-pki.md) |
+| VPN | [docs/05-vpn.md](docs/05-vpn.md) |
+| PDP / PEP | [docs/06-zero-trust-pdp-pep.md](docs/06-zero-trust-pdp-pep.md) |
+| Détection | [docs/07-detection-ia.md](docs/07-detection-ia.md) |
+| Supervision | [docs/08-supervision-siem.md](docs/08-supervision-siem.md) |
+| Tests | [docs/09-tests-et-scenarios.md](docs/09-tests-et-scenarios.md) |
+
+## Sécurité et périmètre
+
+Ce dépôt est un environnement de laboratoire. Les identités, certificats et données qu'il crée sont fictifs ; aucune clé privée n'est versionnée. Les scénarios d'attaque ne doivent être joués que dans le laboratoire isolé, selon [RULES-OF-ENGAGEMENT.md](RULES-OF-ENGAGEMENT.md).
+
+Limites connues : la détection est validée sur un jeu de données public et non sur du trafic de production ; la posture du poste se limite à deux contrôles ; la redistribution de la CRL est manuelle.
+

@@ -5,7 +5,6 @@
 | Field | Value |
 |---|---|
 | **ID / Title** | S6 — UDP DoS on the VPN |
-| **Owner** | Red Team |
 | **Objective** | Verify the Zero Trust control: *tls-crypt + rate-limit* |
 | **Tool / method** | `hping3 --udp --flood` |
 | **MITRE ATT&CK** | T1498 |

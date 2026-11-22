@@ -1,0 +1,22 @@
+{
+  "A": {
+    "config": "A",
+    "S7_out_of_role_ssh": "EXPOSED",
+    "S8_stolen_cert_unmanaged": "ALLOWED (proxy HTTP 200, no posture effect)"
+  },
+  "B": {
+    "config": "B",
+    "S7_out_of_role_ssh": "BLOCKED",
+    "S8_stolen_cert_unmanaged": "ALLOWED (proxy HTTP 200, no posture effect)"
+  },
+  "C": {
+    "config": "C",
+    "S7_out_of_role_ssh": "BLOCKED",
+    "S8_stolen_cert_unmanaged": "QUARANTINED (proxy HTTP 000)"
+  },
+  "D": {
+    "config": "D",
+    "S7_out_of_role_ssh": "BLOCKED",
+    "S8_stolen_cert_unmanaged": "QUARANTINED (proxy HTTP 000)"
+  }
+}

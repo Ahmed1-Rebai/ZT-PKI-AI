@@ -8,7 +8,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 LABPASS="${PKI_PASS:-ZtLabCA-2026}"
 cd "$REPO/infra"
-vs() { local vm="$1"; shift; timeout 120 vagrant ssh "$vm" -c "$*" 2>/dev/null; }
+vs() { local vm="$1"; shift; timeout 120 vagrant ssh "$vm" -c "$*" </dev/null 2>/dev/null; }
 
 echo "[*] generating a new CRL on sub-ca"
 vs sub-ca "cd /home/vagrant && PKI_BASE=/home/vagrant PKI_PASS='$LABPASS' bash pki/scripts/gencrl.sh" | tail -3

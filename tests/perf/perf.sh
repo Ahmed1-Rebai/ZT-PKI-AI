@@ -14,7 +14,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/tests/reports"; mkdir -p "$OUT"
 cd "$REPO/infra"
-vs() { local vm="$1"; shift; timeout 180 vagrant ssh "$vm" -c "$*" 2>/dev/null; }
+vs() { local vm="$1"; shift; timeout 180 vagrant ssh "$vm" -c "$*" </dev/null 2>/dev/null; }
 
 echo "[*] installing iperf3 / sysstat"
 vs client-lin "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q iperf3 >/dev/null"

@@ -5,7 +5,6 @@
 | Field | Value |
 |---|---|
 | **ID / Title** | S3 — Revoked certificate |
-| **Owner** | Red Team |
 | **Objective** | Verify the Zero Trust control: *CRL + OCSP + PDP list* |
 | **Tool / method** | `revoke then connect` |
 | **MITRE ATT&CK** | T1078 |

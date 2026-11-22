@@ -11,7 +11,7 @@ CFG="${1:?usage: probe.sh A|B|C|D}"; CFG="${CFG^^}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/tests/reports/abcd"; mkdir -p "$OUT"
 cd "$REPO/infra"
-vs() { local vm="$1"; shift; timeout 120 vagrant ssh "$vm" -c "$*" 2>/dev/null; }
+vs() { local vm="$1"; shift; timeout 120 vagrant ssh "$vm" -c "$*" </dev/null 2>/dev/null; }
 
 # name|host|port|expected for alice (employee) under Zero Trust
 TARGETS="proxy_https_mtls|10.10.10.10|443|allow

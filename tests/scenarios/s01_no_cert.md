@@ -5,7 +5,6 @@
 | Field | Value |
 |---|---|
 | **ID / Title** | S1 — Connection without certificate |
-| **Owner** | Red Team |
 | **Objective** | Verify the Zero Trust control: *PKI / mTLS* |
 | **Tool / method** | `openvpn client with no cert` |
 | **MITRE ATT&CK** | T1133 |

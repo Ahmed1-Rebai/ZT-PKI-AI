@@ -1,0 +1,2 @@
+# zt-fim-test 1795298602
+7b5c81ee070a3f8669ef6bc018628583c99bd7574b37852364842c0b4cae6f22  /etc/nftables.conf

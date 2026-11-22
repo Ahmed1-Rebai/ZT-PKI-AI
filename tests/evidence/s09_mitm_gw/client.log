@@ -1,0 +1,336 @@
+2026-11-21 23:00:38 us=981937 --cipher is not set. Previous OpenVPN version defaulted to BF-CBC as fallback when cipher negotiation failed in this case. If you need this fallback please add '--data-ciphers-fallback BF-CBC' to your configuration and/or add BF-CBC to --data-ciphers.
+2026-11-21 23:00:38 us=982884 Current Parameter Settings:
+2026-11-21 23:00:38 us=982893   config = '/tmp/mitm.conf'
+2026-11-21 23:00:38 us=982899   mode = 0
+2026-11-21 23:00:38 us=982903   persist_config = DISABLED
+2026-11-21 23:00:38 us=982909   persist_mode = 1
+2026-11-21 23:00:38 us=982913   show_ciphers = DISABLED
+2026-11-21 23:00:38 us=982917   show_digests = DISABLED
+2026-11-21 23:00:38 us=982926   show_engines = DISABLED
+2026-11-21 23:00:38 us=982930   genkey = DISABLED
+2026-11-21 23:00:38 us=982934   genkey_filename = '[UNDEF]'
+2026-11-21 23:00:38 us=982939   key_pass_file = '[UNDEF]'
+2026-11-21 23:00:38 us=982943   show_tls_ciphers = DISABLED
+2026-11-21 23:00:38 us=982947   connect_retry_max = 2
+2026-11-21 23:00:38 us=982952 Connection profiles [0]:
+2026-11-21 23:00:38 us=982956   proto = udp
+2026-11-21 23:00:38 us=982961   local = '[UNDEF]'
+2026-11-21 23:00:38 us=982965   local_port = '1194'
+2026-11-21 23:00:38 us=982970   remote = '192.168.100.11'
+2026-11-21 23:00:38 us=982974   remote_port = '1195'
+2026-11-21 23:00:38 us=982979   remote_float = DISABLED
+2026-11-21 23:00:38 us=982986   bind_defined = DISABLED
+2026-11-21 23:00:38 us=982991   bind_local = ENABLED
+2026-11-21 23:00:38 us=982995   bind_ipv6_only = DISABLED
+2026-11-21 23:00:38 us=982999   connect_retry_seconds = 5
+2026-11-21 23:00:38 us=983004   connect_timeout = 120
+2026-11-21 23:00:38 us=983008   socks_proxy_server = '[UNDEF]'
+2026-11-21 23:00:38 us=983012   socks_proxy_port = '[UNDEF]'
+2026-11-21 23:00:38 us=983017   tun_mtu = 1500
+2026-11-21 23:00:38 us=983021   tun_mtu_defined = ENABLED
+2026-11-21 23:00:38 us=983026   link_mtu = 1500
+2026-11-21 23:00:38 us=983030   link_mtu_defined = DISABLED
+2026-11-21 23:00:38 us=983035   tun_mtu_extra = 0
+2026-11-21 23:00:38 us=983039   tun_mtu_extra_defined = DISABLED
+2026-11-21 23:00:38 us=983047   mtu_discover_type = -1
+2026-11-21 23:00:38 us=983052   fragment = 0
+2026-11-21 23:00:38 us=983056   mssfix = 1450
+2026-11-21 23:00:38 us=983061   explicit_exit_notification = 0
+2026-11-21 23:00:38 us=983065   tls_auth_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983069   key_direction = not set
+2026-11-21 23:00:38 us=983074   tls_crypt_file = '[INLINE]'
+2026-11-21 23:00:38 us=983078   tls_crypt_v2_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983082 Connection profiles END
+2026-11-21 23:00:38 us=983087   remote_random = DISABLED
+2026-11-21 23:00:38 us=983091   ipchange = '[UNDEF]'
+2026-11-21 23:00:38 us=983096   dev = 'tun'
+2026-11-21 23:00:38 us=983100   dev_type = '[UNDEF]'
+2026-11-21 23:00:38 us=983108   dev_node = '[UNDEF]'
+2026-11-21 23:00:38 us=983112   lladdr = '[UNDEF]'
+2026-11-21 23:00:38 us=983117   topology = 1
+2026-11-21 23:00:38 us=983121   ifconfig_local = '[UNDEF]'
+2026-11-21 23:00:38 us=983126   ifconfig_remote_netmask = '[UNDEF]'
+2026-11-21 23:00:38 us=983130   ifconfig_noexec = DISABLED
+2026-11-21 23:00:38 us=983134   ifconfig_nowarn = DISABLED
+2026-11-21 23:00:38 us=983139   ifconfig_ipv6_local = '[UNDEF]'
+2026-11-21 23:00:38 us=983143   ifconfig_ipv6_netbits = 0
+2026-11-21 23:00:38 us=983148   ifconfig_ipv6_remote = '[UNDEF]'
+2026-11-21 23:00:38 us=983153   shaper = 0
+2026-11-21 23:00:38 us=983157   mtu_test = 0
+2026-11-21 23:00:38 us=983162   mlock = DISABLED
+2026-11-21 23:00:38 us=983169   keepalive_ping = 0
+2026-11-21 23:00:38 us=983174   keepalive_timeout = 0
+2026-11-21 23:00:38 us=983178   inactivity_timeout = 0
+2026-11-21 23:00:38 us=983183   inactivity_minimum_bytes = 0
+2026-11-21 23:00:38 us=983187   ping_send_timeout = 0
+2026-11-21 23:00:38 us=983191   ping_rec_timeout = 0
+2026-11-21 23:00:38 us=983196   ping_rec_timeout_action = 0
+2026-11-21 23:00:38 us=983200   ping_timer_remote = DISABLED
+2026-11-21 23:00:38 us=983204   remap_sigusr1 = 0
+2026-11-21 23:00:38 us=983209   persist_tun = DISABLED
+2026-11-21 23:00:38 us=983213   persist_local_ip = DISABLED
+2026-11-21 23:00:38 us=983224   persist_remote_ip = DISABLED
+2026-11-21 23:00:38 us=983232   persist_key = DISABLED
+2026-11-21 23:00:38 us=983236   passtos = DISABLED
+2026-11-21 23:00:38 us=983241   resolve_retry_seconds = 1000000000
+2026-11-21 23:00:38 us=983245   resolve_in_advance = DISABLED
+2026-11-21 23:00:38 us=983250   username = '[UNDEF]'
+2026-11-21 23:00:38 us=983254   groupname = '[UNDEF]'
+2026-11-21 23:00:38 us=983258   chroot_dir = '[UNDEF]'
+2026-11-21 23:00:38 us=983262   cd_dir = '[UNDEF]'
+2026-11-21 23:00:38 us=983267   writepid = '[UNDEF]'
+2026-11-21 23:00:38 us=983271   up_script = '[UNDEF]'
+2026-11-21 23:00:38 us=983276   down_script = '[UNDEF]'
+2026-11-21 23:00:38 us=983280   down_pre = DISABLED
+2026-11-21 23:00:38 us=983285   up_restart = DISABLED
+2026-11-21 23:00:38 us=983296   up_delay = DISABLED
+2026-11-21 23:00:38 us=983301   daemon = DISABLED
+2026-11-21 23:00:38 us=983305   inetd = 0
+2026-11-21 23:00:38 us=983309   log = DISABLED
+2026-11-21 23:00:38 us=983314   suppress_timestamps = DISABLED
+2026-11-21 23:00:38 us=983318   machine_readable_output = DISABLED
+2026-11-21 23:00:38 us=983322   nice = 0
+2026-11-21 23:00:38 us=983327   verbosity = 4
+2026-11-21 23:00:38 us=983331   mute = 0
+2026-11-21 23:00:38 us=983336   gremlin = 0
+2026-11-21 23:00:38 us=983341   status_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983345   status_file_version = 1
+2026-11-21 23:00:38 us=983353   status_file_update_freq = 60
+2026-11-21 23:00:38 us=983357   occ = ENABLED
+2026-11-21 23:00:38 us=983362   rcvbuf = 0
+2026-11-21 23:00:38 us=983366   sndbuf = 0
+2026-11-21 23:00:38 us=983373   mark = 0
+2026-11-21 23:00:38 us=983378   sockflags = 0
+2026-11-21 23:00:38 us=983382   fast_io = DISABLED
+2026-11-21 23:00:38 us=983386   comp.alg = 0
+2026-11-21 23:00:38 us=983391   comp.flags = 0
+2026-11-21 23:00:38 us=983395   route_script = '[UNDEF]'
+2026-11-21 23:00:38 us=983400   route_default_gateway = '[UNDEF]'
+2026-11-21 23:00:38 us=983405   route_default_metric = 0
+2026-11-21 23:00:38 us=983412   route_noexec = DISABLED
+2026-11-21 23:00:38 us=983417   route_delay = 0
+2026-11-21 23:00:38 us=983421   route_delay_window = 30
+2026-11-21 23:00:38 us=983426   route_delay_defined = DISABLED
+2026-11-21 23:00:38 us=983430   route_nopull = DISABLED
+2026-11-21 23:00:38 us=983434   route_gateway_via_dhcp = DISABLED
+2026-11-21 23:00:38 us=983439   allow_pull_fqdn = DISABLED
+2026-11-21 23:00:38 us=983443   management_addr = '[UNDEF]'
+2026-11-21 23:00:38 us=983447   management_port = '[UNDEF]'
+2026-11-21 23:00:38 us=983452   management_user_pass = '[UNDEF]'
+2026-11-21 23:00:38 us=983457   management_log_history_cache = 250
+2026-11-21 23:00:38 us=983470   management_echo_buffer_size = 100
+2026-11-21 23:00:38 us=983479   management_write_peer_info_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983484   management_client_user = '[UNDEF]'
+2026-11-21 23:00:38 us=983489   management_client_group = '[UNDEF]'
+2026-11-21 23:00:38 us=983494   management_flags = 0
+2026-11-21 23:00:38 us=983499   shared_secret_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983503   key_direction = not set
+2026-11-21 23:00:38 us=983508   ciphername = 'BF-CBC'
+2026-11-21 23:00:38 us=983512   ncp_enabled = ENABLED
+2026-11-21 23:00:38 us=983517   ncp_ciphers = 'AES-256-GCM:AES-128-GCM'
+2026-11-21 23:00:38 us=983522   authname = 'SHA1'
+2026-11-21 23:00:38 us=983526   prng_hash = 'SHA1'
+2026-11-21 23:00:38 us=983531   prng_nonce_secret_len = 16
+2026-11-21 23:00:38 us=983539   keysize = 0
+2026-11-21 23:00:38 us=983543   engine = DISABLED
+2026-11-21 23:00:38 us=983548   replay = ENABLED
+2026-11-21 23:00:38 us=983552   mute_replay_warnings = DISABLED
+2026-11-21 23:00:38 us=983557   replay_window = 64
+2026-11-21 23:00:38 us=983561   replay_time = 15
+2026-11-21 23:00:38 us=983566   packet_id_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983570   test_crypto = DISABLED
+2026-11-21 23:00:38 us=983574   tls_server = DISABLED
+2026-11-21 23:00:38 us=983579   tls_client = ENABLED
+2026-11-21 23:00:38 us=983584   ca_file = '[INLINE]'
+2026-11-21 23:00:38 us=983588   ca_path = '[UNDEF]'
+2026-11-21 23:00:38 us=983599   dh_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983603   cert_file = '[INLINE]'
+2026-11-21 23:00:38 us=983608   extra_certs_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983612   priv_key_file = '[INLINE]'
+2026-11-21 23:00:38 us=983616   pkcs12_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983621   cipher_list = '[UNDEF]'
+2026-11-21 23:00:38 us=983625   cipher_list_tls13 = '[UNDEF]'
+2026-11-21 23:00:38 us=983629   tls_cert_profile = '[UNDEF]'
+2026-11-21 23:00:38 us=983634   tls_verify = '[UNDEF]'
+2026-11-21 23:00:38 us=983638   tls_export_cert = '[UNDEF]'
+2026-11-21 23:00:38 us=983644   verify_x509_type = 2
+2026-11-21 23:00:38 us=983648   verify_x509_name = 'vpn-gw.lab.local'
+2026-11-21 23:00:38 us=983652   crl_file = '[UNDEF]'
+2026-11-21 23:00:38 us=983660   ns_cert_type = 0
+2026-11-21 23:00:38 us=983664   remote_cert_ku[i] = 65535
+2026-11-21 23:00:38 us=983669   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983673   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983678   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983682   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983686   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983691   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983695   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983699   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983705   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983709   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983713   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983721   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983725   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983730   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983734   remote_cert_ku[i] = 0
+2026-11-21 23:00:38 us=983738   remote_cert_eku = 'TLS Web Server Authentication'
+2026-11-21 23:00:38 us=983743   ssl_flags = 256
+2026-11-21 23:00:38 us=983747   tls_timeout = 2
+2026-11-21 23:00:38 us=983752   renegotiate_bytes = -1
+2026-11-21 23:00:38 us=983756   renegotiate_packets = 0
+2026-11-21 23:00:38 us=983761   renegotiate_seconds = 3600
+2026-11-21 23:00:38 us=983766   handshake_window = 60
+2026-11-21 23:00:38 us=983770   transition_window = 3600
+2026-11-21 23:00:38 us=983775   single_session = DISABLED
+2026-11-21 23:00:38 us=983783   push_peer_info = DISABLED
+2026-11-21 23:00:38 us=983787   tls_exit = DISABLED
+2026-11-21 23:00:38 us=983791   tls_crypt_v2_metadata = '[UNDEF]'
+2026-11-21 23:00:38 us=983796   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983800   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983805   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983809   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983813   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983818   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983822   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983827   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983832   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983836   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983844   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983848   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983852   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983857   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983861   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983865   pkcs11_protected_authentication = DISABLED
+2026-11-21 23:00:38 us=983870   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983874   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983879   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983883   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983888   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983893   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983897   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983905   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983909   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983916   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983921   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983925   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983929   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983933   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983938   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983942   pkcs11_private_mode = 00000000
+2026-11-21 23:00:38 us=983947   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983952   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983956   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983963   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983968   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983972   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983976   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983981   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983985   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983989   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983994   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=983998   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=984002   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=984007   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=984012   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=984016   pkcs11_cert_private = DISABLED
+2026-11-21 23:00:38 us=984024   pkcs11_pin_cache_period = -1
+2026-11-21 23:00:38 us=984028   pkcs11_id = '[UNDEF]'
+2026-11-21 23:00:38 us=984033   pkcs11_id_management = DISABLED
+2026-11-21 23:00:38 us=984038   server_network = 0.0.0.0
+2026-11-21 23:00:38 us=984043   server_netmask = 0.0.0.0
+2026-11-21 23:00:38 us=984051   server_network_ipv6 = ::
+2026-11-21 23:00:38 us=984055   server_netbits_ipv6 = 0
+2026-11-21 23:00:38 us=984060   server_bridge_ip = 0.0.0.0
+2026-11-21 23:00:38 us=984065   server_bridge_netmask = 0.0.0.0
+2026-11-21 23:00:38 us=984070   server_bridge_pool_start = 0.0.0.0
+2026-11-21 23:00:38 us=984074   server_bridge_pool_end = 0.0.0.0
+2026-11-21 23:00:38 us=984079   ifconfig_pool_defined = DISABLED
+2026-11-21 23:00:38 us=984087   ifconfig_pool_start = 0.0.0.0
+2026-11-21 23:00:38 us=984091   ifconfig_pool_end = 0.0.0.0
+2026-11-21 23:00:38 us=984096   ifconfig_pool_netmask = 0.0.0.0
+2026-11-21 23:00:38 us=984101   ifconfig_pool_persist_filename = '[UNDEF]'
+2026-11-21 23:00:38 us=984105   ifconfig_pool_persist_refresh_freq = 600
+2026-11-21 23:00:38 us=984109   ifconfig_ipv6_pool_defined = DISABLED
+2026-11-21 23:00:38 us=984114   ifconfig_ipv6_pool_base = ::
+2026-11-21 23:00:38 us=984118   ifconfig_ipv6_pool_netbits = 0
+2026-11-21 23:00:38 us=984123   n_bcast_buf = 256
+2026-11-21 23:00:38 us=984127   tcp_queue_limit = 64
+2026-11-21 23:00:38 us=984133   real_hash_size = 256
+2026-11-21 23:00:38 us=984137   virtual_hash_size = 256
+2026-11-21 23:00:38 us=984142   client_connect_script = '[UNDEF]'
+2026-11-21 23:00:38 us=984149   learn_address_script = '[UNDEF]'
+2026-11-21 23:00:38 us=984154   client_disconnect_script = '[UNDEF]'
+2026-11-21 23:00:38 us=984158   client_config_dir = '[UNDEF]'
+2026-11-21 23:00:38 us=984162   ccd_exclusive = DISABLED
+2026-11-21 23:00:38 us=984167   tmp_dir = '/tmp'
+2026-11-21 23:00:38 us=984171   push_ifconfig_defined = DISABLED
+2026-11-21 23:00:38 us=984176   push_ifconfig_local = 0.0.0.0
+2026-11-21 23:00:38 us=984181   push_ifconfig_remote_netmask = 0.0.0.0
+2026-11-21 23:00:38 us=984185   push_ifconfig_ipv6_defined = DISABLED
+2026-11-21 23:00:38 us=984190   push_ifconfig_ipv6_local = ::/0
+2026-11-21 23:00:38 us=984195   push_ifconfig_ipv6_remote = ::
+2026-11-21 23:00:38 us=984199   enable_c2c = DISABLED
+2026-11-21 23:00:38 us=984207   duplicate_cn = DISABLED
+2026-11-21 23:00:38 us=984211   cf_max = 0
+2026-11-21 23:00:38 us=984216   cf_per = 0
+2026-11-21 23:00:38 us=984220   max_clients = 1024
+2026-11-21 23:00:38 us=984225   max_routes_per_client = 256
+2026-11-21 23:00:38 us=984229   auth_user_pass_verify_script = '[UNDEF]'
+2026-11-21 23:00:38 us=984236   auth_user_pass_verify_script_via_file = DISABLED
+2026-11-21 23:00:38 us=984241   auth_token_generate = DISABLED
+2026-11-21 23:00:38 us=984245   auth_token_lifetime = 0
+2026-11-21 23:00:38 us=984249   auth_token_secret_file = '[UNDEF]'
+2026-11-21 23:00:38 us=984255   port_share_host = '[UNDEF]'
+2026-11-21 23:00:38 us=984259   port_share_port = '[UNDEF]'
+2026-11-21 23:00:38 us=984263   vlan_tagging = DISABLED
+2026-11-21 23:00:38 us=984271   vlan_accept = all
+2026-11-21 23:00:38 us=984275   vlan_pvid = 1
+2026-11-21 23:00:38 us=984280   client = ENABLED
+2026-11-21 23:00:38 us=984284   pull = ENABLED
+2026-11-21 23:00:38 us=984289   auth_user_pass_file = '[UNDEF]'
+2026-11-21 23:00:38 us=984294 OpenVPN 2.5.11 x86_64-pc-linux-gnu [SSL (OpenSSL)] [LZO] [LZ4] [EPOLL] [PKCS11] [MH/PKTINFO] [AEAD] built on Sep 23 2026
+2026-11-21 23:00:38 us=984304 library versions: OpenSSL 3.0.2 15 Mar 2022, LZO 2.10
+2026-11-21 23:00:38 us=985895 Outgoing Control Channel Encryption: Cipher 'AES-256-CTR' initialized with 256 bit key
+2026-11-21 23:00:38 us=985910 Outgoing Control Channel Encryption: Using 256 bit message hash 'SHA256' for HMAC authentication
+2026-11-21 23:00:38 us=985920 Incoming Control Channel Encryption: Cipher 'AES-256-CTR' initialized with 256 bit key
+2026-11-21 23:00:38 us=985925 Incoming Control Channel Encryption: Using 256 bit message hash 'SHA256' for HMAC authentication
+2026-11-21 23:00:38 us=985981 Control Channel MTU parms [ L:1621 D:1156 EF:94 EB:0 ET:0 EL:3 ]
+2026-11-21 23:00:38 us=986089 Data Channel MTU parms [ L:1621 D:1450 EF:121 EB:406 ET:0 EL:3 AF:14/121 ]
+2026-11-21 23:00:38 us=986106 Local Options String (VER=V4): 'V4,dev-type tun,link-mtu 1541,tun-mtu 1500,proto UDPv4,auth SHA1,keysize 128,key-method 2,tls-client'
+2026-11-21 23:00:38 us=986111 Expected Remote Options String (VER=V4): 'V4,dev-type tun,link-mtu 1541,tun-mtu 1500,proto UDPv4,auth SHA1,keysize 128,key-method 2,tls-server'
+2026-11-21 23:00:38 us=986118 TCP/UDP: Preserving recently used remote address: [AF_INET]192.168.100.11:1195
+2026-11-21 23:00:38 us=986130 Socket Buffers: R=[212992->212992] S=[212992->212992]
+2026-11-21 23:00:38 us=986139 UDP link local (bound): [AF_INET][undef]:1194
+2026-11-21 23:00:38 us=986145 UDP link remote: [AF_INET]192.168.100.11:1195
+2026-11-21 23:00:38 us=986790 TLS: Initial packet from [AF_INET]192.168.100.11:1195, sid=13ae7de5 0dda0b73
+2026-11-21 23:00:38 us=987712 VERIFY ERROR: depth=0, error=self-signed certificate: CN=vpn-gw.lab.local, serial=483651247312669011527983853482468239962110181179
+2026-11-21 23:00:38 us=987733 OpenSSL: error:0A000086:SSL routines::certificate verify failed
+2026-11-21 23:00:38 us=987738 TLS_ERROR: BIO read tls_read_plaintext error
+2026-11-21 23:00:38 us=987747 TLS Error: TLS object -> incoming plaintext read error
+2026-11-21 23:00:38 us=987752 TLS Error: TLS handshake failed
+2026-11-21 23:00:38 us=987794 TCP/UDP: Closing socket
+2026-11-21 23:00:38 us=987809 SIGUSR1[soft,tls-error] received, process restarting
+2026-11-21 23:00:38 us=987818 Restart pause, 5 second(s)
+2026-11-21 23:00:43 us=989639 Outgoing Control Channel Encryption: Cipher 'AES-256-CTR' initialized with 256 bit key
+2026-11-21 23:00:43 us=989705 Outgoing Control Channel Encryption: Using 256 bit message hash 'SHA256' for HMAC authentication
+2026-11-21 23:00:43 us=989712 Incoming Control Channel Encryption: Cipher 'AES-256-CTR' initialized with 256 bit key
+2026-11-21 23:00:43 us=989718 Incoming Control Channel Encryption: Using 256 bit message hash 'SHA256' for HMAC authentication
+2026-11-21 23:00:43 us=989747 Control Channel MTU parms [ L:1621 D:1156 EF:94 EB:0 ET:0 EL:3 ]
+2026-11-21 23:00:43 us=989852 Data Channel MTU parms [ L:1621 D:1450 EF:121 EB:406 ET:0 EL:3 AF:14/121 ]
+2026-11-21 23:00:43 us=989862 Local Options String (VER=V4): 'V4,dev-type tun,link-mtu 1541,tun-mtu 1500,proto UDPv4,auth SHA1,keysize 128,key-method 2,tls-client'
+2026-11-21 23:00:43 us=989869 Expected Remote Options String (VER=V4): 'V4,dev-type tun,link-mtu 1541,tun-mtu 1500,proto UDPv4,auth SHA1,keysize 128,key-method 2,tls-server'
+2026-11-21 23:00:43 us=989896 TCP/UDP: Preserving recently used remote address: [AF_INET]192.168.100.11:1195
+2026-11-21 23:00:43 us=989963 Socket Buffers: R=[212992->212992] S=[212992->212992]
+2026-11-21 23:00:43 us=989975 UDP link local (bound): [AF_INET][undef]:1194
+2026-11-21 23:00:43 us=989980 UDP link remote: [AF_INET]192.168.100.11:1195
+2026-11-21 23:00:43 us=990139 TLS: Initial packet from [AF_INET]192.168.100.11:1195, sid=15ea732b 313eb4f8
+2026-11-21 23:00:43 us=990990 VERIFY ERROR: depth=0, error=self-signed certificate: CN=vpn-gw.lab.local, serial=483651247312669011527983853482468239962110181179
+2026-11-21 23:00:43 us=991015 OpenSSL: error:0A000086:SSL routines::certificate verify failed
+2026-11-21 23:00:43 us=991020 TLS_ERROR: BIO read tls_read_plaintext error
+2026-11-21 23:00:43 us=991026 TLS Error: TLS object -> incoming plaintext read error
+2026-11-21 23:00:43 us=991031 TLS Error: TLS handshake failed
+2026-11-21 23:00:43 us=991103 TCP/UDP: Closing socket
+2026-11-21 23:00:43 us=991119 SIGUSR1[soft,tls-error] received, process restarting
+2026-11-21 23:00:43 us=991130 Restart pause, 5 second(s)
+2026-11-21 23:00:48 us=993583 All connections have been connect-retry-max (2) times unsuccessful, exiting
+2026-11-21 23:00:48 us=994033 Exiting due to fatal error

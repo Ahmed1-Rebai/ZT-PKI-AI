@@ -1,3 +1,35 @@
 [*] Key (P-256) for bob@lab.local...
-[*] Signing (clientAuth, already-expired test cert 20261008180321Z..20261010170321Z)...
-[+] Issued: pki/sub/certs/bob.crt  (serial 2010, device laptop-02)
+[*] Signing (clientAuth, already-expired test cert 20261119215936Z..20261121205936Z)...
+Using configuration from pki/sub/sub.cnf
+Check that the request matches the signature
+Signature ok
+Certificate Details:
+        Serial Number: 8218 (0x201a)
+        Validity
+            Not Before: Nov 19 21:59:36 2026 GMT
+            Not After : Nov 21 20:59:36 2026 GMT
+        Subject:
+            countryName               = TN
+            organizationName          = ZT-Lab
+            commonName                = bob@lab.local
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Subject Key Identifier: 
+                62:59:25:3C:E9:5B:4D:F9:55:C0:DD:CB:82:88:F2:D4:1D:6C:DE:A5
+            X509v3 Authority Key Identifier: 
+                76:84:6E:85:6D:E0:81:31:2E:D7:2F:A9:3F:B0:E7:02:28:DC:CF:83
+            X509v3 Key Usage: critical
+                Digital Signature
+            X509v3 Extended Key Usage: 
+                TLS Web Client Authentication
+            X509v3 CRL Distribution Points: 
+                Full Name:
+                  URI:http://10.10.99.5/crl/sub.crl
+            Authority Information Access: 
+                OCSP - URI:http://10.10.99.5:2560
+Certificate is to be certified until Nov 21 20:59:36 2026 GMT
+
+Write out database with 1 new entries
+Database updated
+[+] Issued: pki/sub/certs/bob.crt  (serial 201A, device laptop-02)

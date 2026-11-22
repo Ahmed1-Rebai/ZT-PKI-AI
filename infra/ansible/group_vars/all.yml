@@ -11,7 +11,7 @@ zt_repo_root: "{{ playbook_dir }}/../.."
 vpn_port: 1194
 vpn_client_user: alice
 # PDP enforcement in the OpenVPN hooks. 0 = M2 bootstrap (OpenVPN still enforces
-# mTLS + CRL, hooks only log); 1 = M3+ fail-closed (S14). Flip at M3.
+# mTLS + CRL, hooks only log); 1 = M3+ fail-closed (S10). Flip at M3.
 vpn_pdp_enforce: "1"
 
 # Networks
@@ -27,7 +27,7 @@ gw_mgmt_ip:   "10.10.99.1"
 pdp_ip:       "10.10.99.10"
 subca_ip:     "10.10.99.5"
 sensor_ip:    "10.10.99.12"
-ai_ip:        "10.10.99.2"       # the HOST on the mgmt host-only net (GPU AI node)
+ai_ip:        "10.10.99.2"       # the HOST on the mgmt host-only net (admin station, local training)
 siem_ip:      "10.10.99.20"
 proxy_ip:     "10.10.10.10"
 app_ip:       "10.10.20.10"

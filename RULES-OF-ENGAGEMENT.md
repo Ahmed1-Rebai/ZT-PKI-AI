@@ -1,62 +1,66 @@
 # Rules of Engagement — ZT-PKI-AI lab
 
-> Authorization and boundaries for the authorized security testing performed in this academic project.
-> Both team members sign at the bottom before any test is run.
+> Authorization and boundaries for the security tests run in this academic project.
+> The project team signs at the bottom before any test is run.
 
-## 1. Parties
+## 1. Parties and machines
 
-| Role | Team | Machine |
-|---|---|---|
-| 🔵 Blue Team | Defense & Architecture | Blue Team host — Linux · Ryzen 5 · 48 GB RAM · RTX 5050 8 GB · VirtualBox 7.1 |
-| 🔴 Red Team | Offensive Validation | Untrusted attacker node (`client-lin` `192.168.100.11` / Kali Linux 2026.2) |
+The project is carried out by one team of two students, on one shared repository.
+
+| Machine | Role in the tests |
+|---|---|
+| Lab host — Linux · Ryzen 5 · 48 GB RAM · VirtualBox 7.1 | runs the VMs, launches the test scripts, switches the A/B/C/D configurations |
+| `client-lin` (`192.168.100.11`, untrust zone) | alice's workstation **and** the test machine: every attack scenario is played from it |
+
+There is no external attacker machine: the attacks start from `client-lin`, outside or inside
+alice's tunnel.
 
 ## 2. Purpose
 
-Evaluate the ZT-PKI-AI Zero Trust architecture by running the attack scenarios S1–S17 ([docs/09](docs/09-tests-et-scenarios.md)) against the lab, measuring the defensive controls (detection, containment, logging) and documenting the results.
+Evaluate the ZT-PKI-AI Zero Trust architecture with the 12 attack scenarios of
+[docs/09](docs/09-tests-et-scenarios.md) and the A/B/C/D benchmark, measure the defensive controls
+(refusal, segmentation, quarantine, revocation, logging) and keep a proof of every result.
 
 ## 3. Authorized scope
 
 **In scope — the isolated lab only:**
 
-- The `zt-untrust` network `192.168.100.0/24` (the only network the Red Team touches directly).
-- The VMs reachable from it as a legitimate or compromised client, strictly through the published scenarios.
-- All VirtualBox VMs belonging to this project on the Blue Team host.
+- The `zt-untrust` network `192.168.100.0/24` and the VMs reachable from it as a legitimate or
+  compromised client, strictly through the published scenarios.
+- All VirtualBox VMs of this project on the lab host.
 
 **Out of scope — strictly forbidden:**
 
-- Any host, network, or service **outside** the project lab.
-- The Internet, the home/university network, the host OS, and any third-party system.
-- Any real personal or production data.
+- Any host, network or service **outside** the project lab.
+- The Internet, the home/university network, the host OS and any third-party system.
+- Any real personal or production data (the lab only holds test accounts and fake records).
 - Any denial-of-service test against anything other than the lab gateway (S6), and only at the agreed intensity.
 
 ## 4. Isolation requirements
 
-- Lab networks are VirtualBox **Internal Networks** with no host/Internet route.
-- A temporary NAT adapter may be used **only** to install packages, and is **removed** before any test.
-- The Red Team laptop connects **only** to the gateway's WAN NIC (dedicated/bridged cabled link), never to the internal zones.
-- Isolation is verified before each campaign: from Kali, `ping 10.10.30.10` must fail.
+- Lab zones are VirtualBox **internal networks** with no host or Internet route.
+- The temporary NAT adapter used to install packages is **removed** before any test (`make isolate`).
+- Isolation is verified before each campaign: from `client-lin`, `ping 10.10.30.10` must fail.
 
 ## 5. Rules
 
-1. No attack starts before this document is signed and the target snapshot is taken.
-2. Only the tools and methods listed in the scenario sheets are used (nmap, hydra, hping3, dnscat2/iodine, openvpn, openssl).
-3. `rockyou.txt` and similar wordlists are used **only** against lab accounts created for the test.
-4. No destructive action beyond what a scenario defines; no data is exfiltrated outside the lab (S10/S11 send to lab hosts only).
-5. Every test is timestamped and logged; one proof file per result goes in `tests/evidence/`.
-6. If anything unexpected reaches outside the lab, testing stops immediately and both members are notified.
-7. VM snapshots are taken before destructive scenarios and restored afterward.
+1. No test starts before this document is signed and a VM snapshot is taken.
+2. Only the tools and methods listed in the scenario sheets are used (openvpn, openssl, curl, ssh,
+   nmap for S5, hping3 for S6, iperf3 for the performance runs).
+3. No destructive action beyond what a scenario defines; every modified file is restored by the script.
+4. Every test is timestamped and logged; one proof file per result goes in `tests/evidence/`.
+5. If anything unexpected reaches outside the lab, testing stops immediately.
+6. VM snapshots are restored if a scenario leaves the lab in an unexpected state.
 
-## 6. Schedule
+## 6. Legal / ethical note
 
-Testing windows are agreed per milestone (see [TODO.md](TODO.md)); no out-of-window testing.
+This is an academic exercise on infrastructure owned by the project team. No system belonging to a
+third party is targeted. All activity complies with the project's ethics statement
+([README.md §9](README.md)).
 
-## 7. Legal / ethical note
+## 7. Sign-off
 
-This is an academic exercise on infrastructure owned by the Blue Team member. No system belonging to a third party is targeted. All activity complies with the project's ethics statement ([README.md §9](README.md)).
-
-## 8. Sign-off
-
-| Role | Name | Date | Signature |
-|---|---|---|---|
-| 🔵 Blue Team | | | |
-| 🔴 Red Team | | | |
+| Member | Date | Signature |
+|---|---|---|
+| | | |
+| | | |

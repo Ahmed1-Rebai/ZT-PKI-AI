@@ -1,148 +1,120 @@
 # 09 — Tests, scénarios d'attaque et évaluation
 
-> Toutes les attaques sont exécutées **uniquement** depuis `kali` / `client-lin` dans le lab isolé.
+> Toutes les attaques sont jouées depuis `client-lin` (192.168.100.11 dans `zt-untrust`, 10.8.0.10 dans le tunnel d'alice), à l'intérieur du lab isolé. Il n'y a pas de machine attaquante séparée.
 
 ## 1. Stratégie de test
 
 | Niveau | Objet | Outils |
 |---|---|---|
-| Unitaire | PKI, politiques Rego, calcul du score | `openssl`, `opa test`, `pytest` |
-| Intégration | Hooks VPN ↔ PDP ↔ nftables | scripts bash/pytest |
-| Système | Parcours complet utilisateur | scénarios S1–S10 |
-| Sécurité | Attaques réelles en lab | nmap, hydra, hping3, dnscat2… |
-| Performance | Débit, latence, charge | iperf3, ping, `wrk`, `top` |
-| ML | Qualité des modèles | scikit-learn, notebooks |
+| Unitaire | Politique Rego, score de confiance, API du PDP, schéma et scoring IA, intégrité des modèles | `opa test` (`pdp/policies/authz_test.rego`), `pytest` (`pdp/tests`, `ai/tests`) |
+| Intégration | Hooks VPN ↔ PDP ↔ nftables | `vpn/scripts/verify.sh` (9/9) |
+| Système / sécurité | 12 scénarios d'attaque depuis `client-lin` | `tests/run-m2.sh`, `tests/run-redteam.sh` (openvpn, nmap, hping3, ssh, curl) |
+| Comparaison | Configurations A/B/C/D | `tests/abcd/` |
+| Performance | Débit, RTT, latence du PDP, temps de connexion | `tests/perf/` (iperf3, ping) |
+| ML | Qualité des modèles sur CIC-IDS2017 | `ai/train.py` → `ai/reports/metrics.md` |
+
+Depuis l'hôte : `cd infra && make scenarios`, `make abcd`, `make perf`.
 
 ## 2. Matrice des scénarios
 
-| ID | Scénario | Outil / méthode | Contrôle Zero Trust attendu | Résultat attendu | MITRE ATT&CK |
-|---|---|---|---|---|---|
-| **S1** | Connexion sans certificat | `openvpn` client sans cert | PKI / mTLS | Refus handshake | T1133 |
-| **S2** | Cert d'une autre CA (rogue CA) | CA auto-signée | Chaîne de confiance | Refus | T1553 |
-| **S3** | Cert révoqué | Révoquer puis connecter | CRL + OCSP + liste PDP | Refus < 60 s | T1078 |
-| **S4** | Cert expiré | Horloge avancée / `-days 0` | Validité X.509 | Refus | T1078 |
-| **S5** | Scan UDP/TCP de la gateway | `nmap -sU -sS 192.168.100.1` | `tls-crypt` + drop par défaut | Aucun port visible hors 1194 muet | T1046 |
-| **S6** | DoS UDP sur le VPN | `hping3 --udp --flood` | `tls-crypt` + rate-limit | Service stable, paquets ignorés | T1498 |
-| **S7** | Client légitime → accès hors rôle (SSH) | `ssh 10.10.20.10` | Micro-segmentation | Drop + log `ZT-DROP` | T1021 |
-| **S8** | **Scan interne depuis client compromis** | `nmap -sS 10.10.0.0/16` | IA + Suricata → quarantaine | TTQ ≤ 15 s | T1046 |
-| **S9** | **Brute force SSH** | `hydra -l admin -P rockyou.txt ssh://…` | Suricata + IA + score admin < 85 | Détection, accès SSH retiré | T1110 |
-| **S10** | **Exfiltration volumineuse** | `scp`/`curl` de gros fichiers vers hôte externe | UEBA `bytes_ratio` | Alerte, réduction puis quarantaine | T1041 |
-| **S11** | **Tunnel DNS** | `dnscat2` / `iodine` | Règle DNS + features entropie | Alerte, score ↑ | T1071.004 |
-| **S12** | Vol de certificat + utilisation autre appareil | Copie `.ovpn` vers Kali | Posture + empreinte appareil + UEBA | Score ↓, rejet / restriction | T1078 |
-| **S13** | MITM / usurpation de gateway | Faux serveur OpenVPN | `verify-x509-name`, `remote-cert-tls server` | Client refuse de se connecter | T1557 |
-| **S14** | Panne du PDP | Arrêt du service | Fail-closed + TTL | Plus d'accès, expiration des règles | — |
-| **S15** | Altération de la politique pare-feu | Modifier `nftables.conf` | FIM Wazuh | Alerte immédiate | T1562 |
-| **S16** | Évasion lente (low-and-slow) | `nmap -T1`, exfil par petits volumes | UEBA fenêtres longues | Détection tardive (limite discutée) | T1046/T1048 |
-| **S17** | Empoisonnement du modèle (théorique) | Injection de trafic « bénin » anormal | Données contrôlées, versionnage | Dérive détectée | ATLAS AML.T0020 |
+| ID | Scénario | MITRE ATT&CK | Contrôle testé | Script | Résultat | Date |
+|---|---|---|---|---|---|---|
+| **S1** | Connexion sans certificat | T1133 | mTLS obligatoire | `run-m2.sh` | Refus au handshake | 2026-11-21 |
+| **S2** | Certificat d'une autre CA | T1553 | Chaîne de confiance | `run-m2.sh` | Refus, chaîne non construite | 2026-11-21 |
+| **S3** | Certificat révoqué | T1078 | CRL (`crl-verify`) | `run-m2.sh` | `certificate revoked`, refus en moins de 60 s | 2026-10-10 (10/10) |
+| **S4** | Certificat expiré | T1078 | Validité X.509 | `run-m2.sh` | Refus (`notAfter` dépassé) | 2026-11-21 |
+| **S5** | Scan de la gateway (`nmap`) | T1046 | `tls-crypt` + politique `drop` | `run-m2.sh` | 1024 ports TCP filtrés, 1194/udp muet | 2026-10-10 (10/10) |
+| **S6** | Flood UDP sur le port VPN (`hping3`) | T1498 | `tls-crypt` + limite 50 paquets/s | `run-m2.sh` | 600 428 paquets, 0 réponse, service stable | 2026-10-10 (10/10) |
+| **S7** | SSH hors rôle vers `web-app` | T1021 | Micro-segmentation par rôle | `run-redteam.sh` | Drop + log `ZT-DROP` | 2026-11-21 |
+| **S8** | Certificat volé sur un poste non conforme | T1078 | Posture → quarantaine | `run-redteam.sh` | Session en quarantaine, proxy injoignable | 2026-11-21 |
+| **S9** | Fausse gateway (MITM) | T1557 | `verify-x509-name`, `remote-cert-tls server` | `run-m2.sh` | Le client refuse de se connecter | 2026-11-21 |
+| **S10** | PDP arrêté | — | Fail-closed (`PDP_ENFORCE=1`) | `run-m2.sh` | `deny pdp-unreachable`, aucun tunnel | 2026-11-21 |
+| **S11** | Altération de `nftables.conf` | T1562.004 | FIM Wazuh | `run-redteam.sh` | Alerte règle 100160 en quelques secondes | 2026-11-21 |
+| **S12** | Modèle IA altéré | ATLAS AML.T0020 | Manifeste SHA-256 (`ai/registry.py`) | `run-redteam.sh` | Modèle refusé au chargement | 2026-11-21 |
+
+Le plan de test initial comptait 17 scénarios ; cinq ont été abandonnés (scan interne, force brute SSH, exfiltration, tunnel DNS, évasion lente) et les douze retenus ont été renumérotés de S1 à S8. Les fiches détaillées et les preuves sont dans [`tests/scenarios/`](../tests/scenarios/README.md) et `tests/evidence/<scénario>/`.
 
 ## 3. Procédures détaillées (exemples)
 
-### S3 — Révocation
-```bash
-# 1. Connexion OK
-sudo openvpn --config alice.ovpn &
-# 2. Révocation (sub-ca)
-./scripts/revoke.sh alice && ./scripts/gencrl.sh && scp crl/sub.pem zt-gw:/etc/openvpn/server/crl.pem
-# 3. Le PDP coupe la session et marque le serial révoqué
-curl -k -X POST https://10.10.99.10:8443/v1/cert/<serial>/revoke
-# 4. Nouvelle connexion → refusée
-```
-**Mesure** : délai entre `revoke` et refus effectif.
+### S3 — Révocation (`run-m2.sh s3`)
+1. Révocation d'alice sur `sub-ca` : `pki/scripts/revoke.sh pki/sub/certs/alice.crt keyCompromise`, puis `gencrl.sh`.
+2. Copie de la nouvelle CRL sur `zt-gw` (`/etc/openvpn/server/crl.pem`, relue par `crl-verify`).
+3. Reconnexion depuis `client-lin` → `VERIFY ERROR: ... certificate revoked`.
+4. Le script réémet ensuite un certificat pour alice et restaure le lab.
 
-### S8 — Scan depuis client compromis
-```bash
-# Sur client-lin (connecté au VPN avec cert valide)
-nmap -sS -p- 10.10.20.10 10.10.30.10 --min-rate 500
-```
-Déroulé attendu :
-1. Flux anormaux (nombreux SYN/RST, ports dispersés).
-2. NFStream → features → IA : score ≥ 0,8.
-3. PDP : TrustScore < 50 → `quarantine` + `ZT-QUAR`.
-4. Wazuh : règles 100101 / 100110.
-5. L'utilisateur ne peut plus que joindre le portail de remédiation.
+Preuves : `revoke.txt`, `crl.pem`, `timing.txt`, `server.log`.
 
-**Mesures** : `t0` (premier SYN), `t_detect` (score > seuil), `t_quarantine` (règle nft appliquée).
+### S8 — Certificat volé sur un poste non conforme (`run-redteam.sh s8`)
+1. Sur `client-lin`, le marqueur `/etc/zt-client/managed` est retiré et `ufw` désactivé.
+2. L'agent de posture envoie son rapport au PDP (mTLS) ; le score de l'appareil baisse.
+3. Le PDP place la session en quarantaine : l'adresse 10.8.0.10 passe dans le set `quarantine` de `zt-gw`, seul le canal de posture reste joignable.
+4. `curl` vers le reverse proxy échoue (`proxy_http_code=000`) ; le script remet ensuite le poste en conformité.
 
-### S10 — Exfiltration
-```bash
-dd if=/dev/urandom of=/tmp/big.bin bs=1M count=500
-scp /tmp/big.bin user@10.10.99.99:/tmp/       # destination hors profil habituel
-```
-Mesurer la **quantité de données sortie avant coupure** (comparaison politique statique / dynamique).
+### S10 — PDP arrêté (`run-m2.sh s10`)
+Avec `PDP_ENFORCE=1`, le hook `tls-verify` ne joint plus le PDP et refuse : `{"event":"tls-verify","decision":"deny","reason":"pdp-unreachable"}` ; le client échoue au handshake.
 
-## 4. Génération de trafic bénin (pour réduire les faux positifs)
-
-```python
-# tests/traffic_benign.py — profils simulés
-import random, time, requests, subprocess
-URLS = ["https://app.lab.local/", "https://app.lab.local/reports", "https://app.lab.local/api/items"]
-def employee_session():
-    for _ in range(random.randint(5, 30)):
-        requests.get(random.choice(URLS), cert=("alice.crt", "alice.key"), verify="ca-chain.crt")
-        time.sleep(random.expovariate(1/5))
-```
-Prévoir plusieurs profils : employé (web), admin (SSH courts), prestataire (portail), tâches périodiques.
-
-## 5. Métriques collectées
+## 4. Métriques collectées
 
 | Catégorie | Métrique | Source |
 |---|---|---|
-| Sécurité | Taux de blocage des accès illégitimes | Logs PDP / VPN |
-| Détection | Precision, Recall, F1, AUC, **FPR** | Notebooks IA |
-| Réactivité | **TTD**, **TTQ**, délai de révocation | Horodatages croisés |
-| Impact | Données exfiltrées avant coupure | Compteurs nft / Suricata |
-| Performance | Débit iperf3, latence, CPU, RAM | iperf3, `pidstat` |
-| Disponibilité | Faux positifs bloquant un utilisateur légitime | Journal PDP |
+| Sécurité | Verdict de chaque scénario (refus, drop, quarantaine, alerte) | `tests/evidence/` |
+| Exposition | Services joignables depuis le tunnel d'un employé, par configuration | `tests/abcd/probe.sh` |
+| Détection | F1, FPR, ROC-AUC, latence par flux (CIC-IDS2017) | `ai/reports/metrics.md` |
+| Réactivité | Décision du PDP, connexion OpenVPN, boucle IA → PDP → PEP (événement simulé) | `tests/perf/perf.sh`, `TODO.md` (M5) |
+| Performance | Débit iperf3, RTT, CPU de la gateway | `tests/perf/` |
 
-## 6. Comparaison à mener (apport scientifique)
+## 5. Comparaison A/B/C/D
 
 | Configuration | Description |
 |---|---|
-| **A** | VPN + PKI, accès réseau classique (périmètre) |
-| **B** | A + micro-segmentation statique (Zero Trust « de base ») |
-| **C** | B + PDP dynamique (posture + TTL) |
-| **D** | C + **IA dans la boucle** (configuration complète) |
+| **A** | VPN + PKI, le pool VPN joint toutes les zones (VPN de périmètre) |
+| **B** | Tunnel de A + règles par rôle permanentes ; PDP arrêté |
+| **C** | PDP dynamique : décision à la connexion, posture, règles avec TTL ; IA arrêtée |
+| **D** | C + moteur IA dans la boucle (état normal du lab) |
 
-Rejouer S7–S12 sur A, B, C, D ; comparer **TTQ**, **mouvement latéral possible**, **données exfiltrées**, **faux positifs**. Résultat attendu : D réduit nettement l'impact des attaques « post-authentification ».
+`tests/abcd/set-config.sh A|B|C|D` bascule le lab ; `run-all.sh` mesure la surface exposée dans chaque configuration (une connexion par service depuis le tunnel d'alice, sans scan) ; `attack-abcd.sh` rejoue S7 et S8 dans chaque configuration ; `tests/perf/perf-abcd.sh` mesure le débit sur le même chemin.
 
-## 7. Automatisation
+Résultats du 2026-11-21 ([`tests/reports/results.md`](../tests/reports/results.md), analyse dans [`perf.md`](../tests/reports/perf.md)) :
+
+| | A | B | C | D |
+|---|---|---|---|---|
+| Services joignables (sur 7) | 7 | 2 | 2 | 2 |
+| Violations Zero Trust | 5 | 0 | 0 | 0 |
+| Droits limités dans le temps | non | non | oui (TTL) | oui (TTL) |
+| S7 — SSH hors rôle | EXPOSÉ | BLOQUÉ | BLOQUÉ | BLOQUÉ |
+| S8 — certificat volé, poste non conforme | AUTORISÉ | AUTORISÉ | QUARANTAINE | QUARANTAINE |
+| Débit, même chemin (Mbit/s) | 27,3 | 28,6 | 35,0 | 32,5 |
+
+Les écarts de débit entre A, B, C et D restent dans le bruit de mesure : les contrôles Zero Trust n'ajoutent pas de surcoût mesurable. D sans le miroir de trafic atteint 70,8 Mbit/s : c'est la copie logicielle `tc mirred` sur la gateway qui coûte environ 54 %. Autres mesures : décision du PDP 20,8 ms (médiane), connexion OpenVPN 1,28 s, débit brut 3 859 Mbit/s, tunnel 312 Mbit/s, chemin Zero Trust complet 32,3 Mbit/s.
+
+## 6. Automatisation
 
 ```
 tests/
-├── scenarios/
-│   ├── s01_no_cert.sh
-│   ├── s03_revoked.sh
-│   ├── s08_internal_scan.sh
-│   └── ...
-├── traffic_benign.py
-├── run_all.py            # orchestre, horodate, collecte
-├── analyze.ipynb         # calcule TTD/TTQ/métriques, génère graphiques
-└── reports/              # CSV + figures (réutilisables dans le rapport)
+├── run-m2.sh          # S1–S6, S9, S10 (scénarios à la connexion)
+├── run-redteam.sh     # S7, S8, S11, S12 (scénarios après connexion)
+├── scenarios/         # une fiche .md par scénario
+├── evidence/          # preuves brutes par scénario
+├── abcd/              # set-config.sh, probe.sh, attack-abcd.sh, run-all.sh
+├── perf/              # perf.sh, perf-abcd.sh
+└── reports/           # JSON, make_report.py → results.md + charts/, perf.md
 ```
 
-```python
-# tests/run_all.py (squelette)
-import subprocess, time, json
-def run(s):
-    t0 = time.time()
-    subprocess.run(["bash", f"scenarios/{s}.sh"], check=False)
-    return {"scenario": s, "t0": t0, "t1": time.time()}
-results = [run(s) for s in ["s01_no_cert", "s03_revoked", "s08_internal_scan"]]
-json.dump(results, open("reports/results.json", "w"), indent=2)
-```
+Chaque scénario rend un verdict automatique (PASS / FAIL / SKIP) et écrit ses preuves dans `tests/evidence/<scénario>/`.
 
-## 8. Critères d'acceptation
+## 7. Critères d'acceptation
 
-- [ ] S1–S4, S13 : 100 % de refus.
-- [ ] S5, S6 : service gateway stable, aucune fuite d'information.
-- [ ] S7 : 0 flux hors rôle accepté.
-- [ ] S8–S11 : détection ≥ 90 %, TTQ médian ≤ 15 s.
-- [ ] S14 : fail-closed vérifié.
-- [ ] FPR ≤ 2 % sur ≥ 24 h de trafic bénin.
-- [ ] Surcoût de débit ≤ 15 %.
-- [ ] Toutes les décisions retrouvées dans Wazuh.
+- [x] S1–S4, S9 : 100 % de refus.
+- [x] S5, S6 : gateway stable, aucun port TCP visible, 1194/udp muet.
+- [x] S7 : aucun flux hors rôle accepté (B, C, D).
+- [x] S8 : poste non conforme mis en quarantaine (C, D).
+- [x] S10 : fail-closed vérifié.
+- [x] S11 : alerte FIM dans Wazuh ; S12 : modèle altéré refusé.
+- [x] FPR ≤ 2 % et F1 ≥ 0,95 sur le test CIC-IDS2017 (0,16 %, 0,9943).
+- [x] Surcoût des contrôles Zero Trust ≤ 15 % (aucun surcoût mesurable).
+- [x] Décision du PDP ≤ 500 ms (20,8 ms).
 
-## 9. Gabarit de fiche de test
+## 8. Gabarit de fiche de test
 
 | Champ | Valeur |
 |---|---|
@@ -154,4 +126,4 @@ json.dump(results, open("reports/results.json", "w"), indent=2)
 | Résultat obtenu | |
 | Preuves (logs, captures) | |
 | Statut (OK / KO / partiel) | |
-| Remarques / améliorations | |
+| Remarques | |

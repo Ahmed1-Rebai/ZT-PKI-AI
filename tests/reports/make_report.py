@@ -74,15 +74,14 @@ def abcd_section(rows) -> list[str]:
             ""]
     attacks = load("abcd/attacks.json")
     if attacks:
-        out += ["## A/B/C/D comparison — Red Team attacks from `client-lin`", "",
+        out += ["## A/B/C/D comparison — attacks played from `client-lin`", "",
                 "| Attack Scenario (from `client-lin` / `10.8.0.10`) | " + " | ".join(f"{c} – {CONFIGS[c]}" for c in CONFIGS if c in attacks) + " |",
                 "|---|" + "---|" * len([c for c in CONFIGS if c in attacks]),
                 "| **S7** — Out-of-role SSH (`10.10.20.10:22`) | " + " | ".join(attacks[c]["S7_out_of_role_ssh"] for c in CONFIGS if c in attacks) + " |",
-                "| **S12** — Stolen cert on unmanaged device (posture fail) | " + " | ".join(attacks[c]["S12_stolen_cert_unmanaged"] for c in CONFIGS if c in attacks) + " |",
-                "| **S8 / S10** — Compromised tunnel host (Scan / Exfil) | " + " | ".join(attacks[c]["S8_S10_compromised_host_scan_exfil"] for c in CONFIGS if c in attacks) + " |",
+                "| **S8** — Stolen cert on unmanaged device (posture fail) | " + " | ".join(attacks[c]["S8_stolen_cert_unmanaged"] for c in CONFIGS if c in attacks) + " |",
                 ""]
     else:
-        out += ["Run `bash tests/abcd/attack-abcd.sh` to populate the comparative attack columns (S7, S8/S10, S12) from `client-lin`.", ""]
+        out += ["Run `bash tests/abcd/attack-abcd.sh` to populate the comparative attack columns (S7, S8) from `client-lin`.", ""]
     return out
 
 

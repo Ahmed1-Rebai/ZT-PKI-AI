@@ -51,3 +51,27 @@ ai/models/*.pt
 
 # AI engine mTLS identity (staged from sub-ca)
 ai/certs/
+
+# Supports de communication (rapport, présentation, vidéo de démo) : produits hors du dépôt
+sec-demo/
+rapport/
+presentation/
+video/
+demo/
+renders/
+narration*/
+*.pptx
+*.potx
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.srt
+*.vtt
+*.wav
+*.mp3
+*.tex
+*.aux
+*.toc
+*.out
+*.synctex.gz

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# (Re)generate the Issuing CA CRL (run hourly via cron + on every revocation).
+# (Re)generate the Issuing CA CRL (called by revoke.sh and refresh-crl.sh).
 set -euo pipefail
 BASE="${PKI_BASE:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$BASE"

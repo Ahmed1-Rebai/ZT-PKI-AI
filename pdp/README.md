@@ -48,8 +48,8 @@ PDP exposes `https://10.10.99.10:8443` with mandatory client TLS.
 
 3. Seed/adjust `pdp/policies/data.json` before deployment. A newly known user
    begins with posture `0`: the tunnel is admitted on identity alone (`admit`),
-   but the session opens in **quarantine** (posture channel + remediation
-   portal only) until the posture agent's report re-scores it. Resource tiers
+   but the session opens in **quarantine** (only the posture channel to the PDP is
+   reachable) until the posture agent's report re-scores it. Resource tiers
    apply only when the policy's `allow` holds (`effective_tier`). Every 60
    seconds the PDP re-evaluates active sessions;
    gateway rules expire naturally if that loop or the PDP fails.

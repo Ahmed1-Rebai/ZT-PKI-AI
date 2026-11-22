@@ -5,7 +5,6 @@
 | Field | Value |
 |---|---|
 | **ID / Title** | S2 — Certificate from another CA (rogue CA) |
-| **Owner** | Red Team |
 | **Objective** | Verify the Zero Trust control: *Trust chain* |
 | **Tool / method** | `self-signed CA` |
 | **MITRE ATT&CK** | T1553 |

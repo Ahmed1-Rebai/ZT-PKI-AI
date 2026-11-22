@@ -12,7 +12,7 @@ CFG="${1:?usage: set-config.sh A|B|C|D}"; CFG="${CFG^^}"
 [[ "$CFG" =~ ^[ABCD]$ ]] || { echo "config must be A, B, C or D" >&2; exit 64; }
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO/infra"
-vs() { local vm="$1"; shift; timeout 120 vagrant ssh "$vm" -c "$*" 2>/dev/null; }
+vs() { local vm="$1"; shift; timeout 120 vagrant ssh "$vm" -c "$*" </dev/null 2>/dev/null; }
 
 # B: permanent per-role elements derived from the PDP's own directory, as two
 # single-line nft commands (multi-line input does not survive the SSH layer).

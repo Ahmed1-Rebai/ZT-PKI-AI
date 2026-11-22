@@ -1,6 +1,6 @@
 # infra/ — Infrastructure as Code (Vagrant + Ansible on VirtualBox)
 
-Hypervisor: **VirtualBox 7.1 (virtio)** on the Blue Team host.
+Hypervisor: **VirtualBox 7.1 (virtio)** on the lab host.
 VM layer: **Vagrant** (`Vagrantfile`). Configuration: **Ansible** (`ansible/`).
 
 ## ⚠️ Requires VirtualBox ≥ 7.1
@@ -18,37 +18,35 @@ Terraform has no maintained VirtualBox provider. On VirtualBox the declarative
 VM tool is Vagrant; Ansible then configures each VM. (Terraform would only apply
 if we moved to libvirt/KVM or Proxmox.)
 
-## VMs (10 automated + offline Root CA) + AI on the host
+## VMs (9 running + offline Root CA)
 
-| Node | Role | Zone(s) | Box | Milestone |
-|---|---|---|---|---|
-| root-ca | Offline Root CA | none (detach after signing) | debian-12 | M1 |
-| sub-ca | Issuing CA, CRL, OCSP | mgmt | debian-12 | M1 |
-| zt-gw | OpenVPN + nftables (PEP) | all 5 | debian-12 | M2/M3 |
-| zt-pdp | PDP + OPA + Redis | mgmt | debian-12 | M3 |
-| zt-sensor | Suricata + NFStream | mgmt (+mirror) | debian-12 | M4/M6 |
-| **(host)** | **AI detection — runs on THIS laptop** | mgmt (10.10.99.2) | — GPU | M4/M5 |
-| siem | Wazuh | mgmt | ubuntu-22.04 | M6 |
-| web-proxy | Nginx mTLS proxy | dmz | debian-12 | M6 |
-| web-app | Demo app/API | app | debian-12 | M6 |
-| db | PostgreSQL | data | debian-12 | M6 |
-| client-lin | Legit/compromised client | untrust | ubuntu-22.04 | M2/M6 |
+| Node | Role | Zone(s) | Box |
+|---|---|---|---|
+| root-ca | Offline Root CA (powered off) | none | debian-12 |
+| sub-ca | Issuing CA, CRL, OCSP | mgmt | debian-12 |
+| zt-gw | OpenVPN + nftables (PEP), traffic mirror | all 5 + mirror | debian-12 |
+| zt-pdp | PDP + OPA + Redis (Docker) | mgmt | debian-12 |
+| zt-sensor | Suricata 7 + AI inference service (`zt-ai`) | mgmt + mirror | debian-12 |
+| siem | Wazuh 4.14.8 | mgmt | ubuntu-22.04 |
+| web-proxy | Nginx mTLS proxy | dmz | debian-12 |
+| web-app | Flask app (gunicorn) | app | debian-12 |
+| db | PostgreSQL | data | debian-12 |
+| client-lin | alice's workstation and test machine of the scenarios | untrust | ubuntu-22.04 |
 
-`client-win` (Windows) and an optional external `kali` host are not managed by this IaC (`client-lin` runs both legitimate client and automated Red Team test workloads).
-Total VM RAM ≈ 18 GB (AI moved off-VM onto the host).
+Total VM RAM ≈ 18 GB.
 
-## AI on the host
+## The host
 
-VirtualBox cannot pass the RTX 5050 into a guest (no CUDA passthrough), so the AI
-engine runs natively on the host and the host joins the lab's **mgmt** network:
+The host runs VirtualBox, Vagrant and Ansible. It is not a node of the
+architecture. It also has two side roles:
 
-- The mgmt network is a VirtualBox **host-only** net (not internal), so the host
-  can reach `zt-pdp` (:8443) and `zt-sensor`, while still having no Internet route.
-- The host's mgmt address is **10.10.99.2**. Set it once after the first mgmt VM
-  is up: `make mgmt-host`.
-- Configure the AI venv/service on the host: `make ai` (Ansible, local connection).
-- Training uses the GPU (`torch` CUDA); inference posts risk scores to the PDP.
-- The other four zones (untrust/dmz/app/data) stay fully **internal** (VM-only).
+- **Local training of the AI models** (`ai/train.py`, GPU): the trained models and
+  their signed `manifest.json` are then deployed by the `sensor` role on
+  `zt-sensor`, where inference runs (CPU). `make ai` prepares the local `.venv`;
+  install the dependencies with `.venv/bin/pip install -r infra/requirements.txt`.
+- **Admin station**: the mgmt network is a VirtualBox host-only net, so the host
+  can open the Wazuh dashboard (`https://10.10.99.20`). Give it its mgmt address
+  once with `make mgmt-host` (10.10.99.2). The four other zones stay internal.
 
 ## Workflow
 
@@ -58,22 +56,21 @@ cd infra
 # 0. One-time: install the tools (needs sudo; downloads boxes from the Internet)
 make tools
 
-# 1. Bring up VMs in milestone-sized batches (RAM is ~28-32 GB for the full set)
-make core          # sub-ca, zt-gw, zt-pdp
-make mgmt-host     # give THIS host 10.10.99.2 on the mgmt net (AI node)
-make detection     # zt-sensor, siem
-make ai            # configure the AI engine on the host (GPU)
-make workloads     # web-proxy, web-app, db
-make client        # client-lin
-#   ... or `make up` for every VM, `vagrant up <name>` for one.
+# 1. Bring up the lab (= vagrant up, stage by stage; first boot runs Ansible)
+make core detection workloads client
+#   core: sub-ca zt-gw zt-pdp · detection: zt-sensor siem
+#   workloads: web-proxy web-app db · client: client-lin
+#   (`make up` would also start root-ca, which must stay off)
+make mgmt-host     # once: host address 10.10.99.2 on the mgmt net (Wazuh dashboard)
 
 # 2. Re-apply configuration after editing a role
 make provision
 
-# 3. For attack-test runs, cut Internet from the lab VMs
+# 3. Tests: cut Internet from the lab VMs first
 make isolate       # detaches each VM's NAT adapter (eth0)
-make redteam       # run S7-S12, S15-S17 scenarios from client-lin
-make abcd          # run A/B/C/D comparative surface + attack benchmark
+make scenarios     # the 12 attack scenarios, played from client-lin
+make abcd          # A/B/C/D benchmark: exposed surface + attacks
+make perf          # PDP latency, VPN connect, throughput per path and per config
 make reconnect     # re-attach when you need apt again
 ```
 
@@ -84,8 +81,8 @@ CSR), detach its NIC and keep it halted — it must stay offline.
 
 ```
 infra/
-├── Vagrantfile              # 10 VMs + 5 internal networks + mirror net + Ansible provisioner
-├── Makefile                 # tools / core / detection / workloads / vpn / redteam / abcd / isolate ...
+├── Vagrantfile              # 10 VMs + zone networks + mirror net + Ansible provisioner
+├── Makefile                 # tools / core / detection / workloads / vpn / scenarios / abcd / perf / isolate ...
 ├── docker-compose.yml       # PDP + OPA + Redis control-plane stack
 ├── requirements.txt         # Python deps for pdp/ and ai/
 └── ansible/

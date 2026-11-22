@@ -1,3 +1,3 @@
 subject=C = TN, O = ZT-Lab, CN = bob@lab.local
-notBefore=Oct  8 18:03:21 2026 GMT
-notAfter=Oct 10 17:03:21 2026 GMT
+notBefore=Nov 19 21:59:36 2026 GMT
+notAfter=Nov 21 20:59:36 2026 GMT

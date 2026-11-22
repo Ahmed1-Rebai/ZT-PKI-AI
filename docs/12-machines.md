@@ -1,6 +1,6 @@
 # 12 — Virtual machines: description and rationale
 
-> The lab runs **10 VirtualBox VMs** plus the **host** (which doubles as the AI node).
+> The lab runs **10 VirtualBox VMs**. The host that runs VirtualBox is not part of the architecture: it trains the AI models and serves as the admin station.
 > Each VM maps to a role in the NIST SP 800-207 Zero Trust model (see [docs/02](02-architecture.md)).
 > Provisioned with Vagrant + Ansible (see [infra/](../infra/)). Base boxes: `bento/debian-12`, `bento/ubuntu-22.04`.
 
@@ -25,7 +25,7 @@ rest — essential for the attack scenarios.
 
 ### `sub-ca` — Issuing CA, OCSP, CRL
 - **Why:** day-to-day certificate work (issue, renew, revoke) has to be online, but we keep it separate from the Root so a compromise here cannot re-sign the trust anchor (`pathlen:0` blocks it from issuing new CAs).
-- **What it does:** issues short-lived user/machine/service certs; publishes the **CRL over HTTP** (`:80`) and runs the **OCSP responder** (`:2560`) so revocation is checkable.
+- **What it does:** issues short-lived client and server/service certs; publishes the **CRL over HTTP** (`:80`) and runs the **OCSP responder** (`:2560`) so revocation is checkable.
 - **Network:** mgmt `10.10.99.5`.
 - **OS/size:** Debian 12 · 1 vCPU · 1 GB.
 
@@ -36,7 +36,7 @@ rest — essential for the attack scenarios.
 ### `zt-gw` — VPN gateway + firewall (Policy Enforcement Point)
 - **Why:** this is the **only** path between the untrusted side and the protected zones, and the only router between zones. Concentrating enforcement here is what makes "deny by default, allow per identity" possible.
 - **What it does:** terminates the OpenVPN mTLS tunnel, runs nftables with dynamic, time-limited allow-rules driven by the PDP, and enforces every access decision (the PEP).
-- **Network:** all five zones — untrust `192.168.100.1`, dmz `10.10.10.1`, app `10.10.20.1`, data `10.10.30.1`, mgmt `10.10.99.1`.
+- **Network:** all five zones — untrust `192.168.100.1`, dmz `10.10.10.1`, app `10.10.20.1`, data `10.10.30.1`, mgmt `10.10.99.1` — plus a mirror NIC on `zt-mirror` (`10.10.98.1`) where it copies its zone traffic (`tc mirred`) for the sensor.
 - **OS/size:** Debian 12 · 2 vCPU · 2 GB.
 
 ### `zt-pdp` — Policy Decision Point
@@ -49,22 +49,22 @@ rest — essential for the attack scenarios.
 
 ## Security / observability plane
 
-### `zt-sensor` — network sensor
+### `zt-sensor` — network sensor + AI inference
 - **Why:** detection must watch real traffic without sitting in the data path (so it can't break connectivity or be bypassed). It receives a mirror of gateway traffic.
-- **What it does:** Suricata (signatures) + NFStream (flow features) — the raw material for the AI and the SIEM.
-- **Network:** mgmt `10.10.99.12` (+ a mirror NIC at M4).
-- **OS/size:** Debian 12 · 2 vCPU · 2 GB.
+- **What it does:** Suricata (signatures, alerts go to Wazuh) + NFStream (per-flow features) feeding the `zt-ai` systemd service, which scores each flow with the IF + AE + RF models and posts anomaly events to the PDP over mTLS. Models are checked against a SHA-256 manifest before loading.
+- **Network:** mgmt `10.10.99.12` + mirror `10.10.98.12` (promiscuous).
+- **OS/size:** Debian 12 · 2 vCPU · 3 GB.
 
 ### `siem` — Wazuh
 - **Why:** Zero Trust requires "collect everything, correlate, respond". A dedicated SIEM gives tamper-resistant, centralized evidence — and the proof files for every test result.
-- **What it does:** ingests logs from gateway, PDP, AI, proxy, PKI; correlation rules; dashboards; optional active response.
+- **What it does:** agents on zt-gw, zt-pdp, zt-sensor, sub-ca and web-proxy ship the VPN, firewall, PDP audit, Suricata, AI and nginx logs; file integrity monitoring on the security configs; custom correlation rules; dashboards.
 - **Network:** mgmt `10.10.99.20`.
 - **OS/size:** Ubuntu 22.04 · 4 vCPU · 6 GB (Wazuh is the heaviest service).
 
-### host (this laptop) — AI anomaly-detection engine
-- **Why:** the models need the **RTX 5050 GPU**, and VirtualBox cannot pass a GPU into a guest. So the AI runs natively on the host, which joins the mgmt network as a node.
-- **What it does:** feature extraction, model training (CUDA), and an inference service that sends risk scores to the PDP.
-- **Network:** mgmt `10.10.99.2` (host-only).
+### The host (not an architecture node)
+- **Why:** training needs the **RTX 5050 GPU**, and VirtualBox cannot pass a GPU into a guest, so the models are trained on the host and the resulting artifacts are deployed to `zt-sensor`.
+- **What it does:** runs VirtualBox, Vagrant and Ansible; trains the models (`ai/train.py`, `.venv` prepared by `make ai`); acts as the admin station (Wazuh dashboard). It does not run inference and takes no part in access decisions.
+- **Network:** mgmt `10.10.99.2` (host-only, set with `make mgmt-host`).
 
 ---
 
@@ -90,21 +90,13 @@ rest — essential for the attack scenarios.
 
 ---
 
-## Untrusted zone (users and attacker)
+## Untrusted zone
 
-### `client-lin` — legitimate / compromised client
-- **Why:** we need a real endpoint to (a) show a normal user getting least-privilege access and (b) play the "valid cert, malicious behaviour" insider that the AI must catch.
-- **What it does:** OpenVPN client + posture agent; also the launch point for post-authentication attack scenarios (S8–S12).
-- **Network:** untrust `192.168.100.11`.
+### `client-lin` — user workstation and test machine
+- **Why:** we need a real endpoint to (a) show a normal user (alice) getting least-privilege access and (b) play the attacker, both outside the tunnel and as a "valid cert, malicious behaviour" insider.
+- **What it does:** OpenVPN client + posture agent. It is also the machine every one of the 12 scenarios is played from (`make scenarios`), including the post-authentication ones: S7 out-of-role SSH, S8 stolen cert on a non-compliant device, S11 firewall config tampering, S12 tampered model. There is no separate attacker VM.
+- **Network:** untrust `192.168.100.11`, no Internet during tests (`make isolate`).
 - **OS/size:** Ubuntu 22.04 · 2 vCPU · 2 GB.
-
-### `kali` / `client-lin` — Red Team attacker node
-- **Why:** external attacker with no credentials (or compromised endpoint inside the tunnel), used for authorized testing against the lab only.
-- **What it does:** reconnaissance, access attempts, DoS, exploitation (S1–S17).
-- **Network:** untrust only (`192.168.100.0/24`), **no Internet during tests**.
-
-### `client-win` — Windows client *(optional)*
-- **Why:** shows the posture agent and client flow on Windows too; skipped unless needed (Ansible-over-WinRM overhead).
 
 ---
 
@@ -114,15 +106,13 @@ rest — essential for the attack scenarios.
 |---|---|---|---|---|---|
 | root-ca | Identity | Offline Root CA | none (offline) | Debian 12 | 1 / 512 MB |
 | sub-ca | Identity | Issuing CA, OCSP, CRL | mgmt `10.10.99.5` | Debian 12 | 1 / 1 GB |
-| zt-gw | Control/edge | VPN gateway + firewall (PEP) | all 5 zones | Debian 12 | 2 / 2 GB |
+| zt-gw | Control/edge | VPN gateway + firewall (PEP) | all 5 zones + mirror | Debian 12 | 2 / 2 GB |
 | zt-pdp | Control | Policy Decision Point | mgmt `10.10.99.10` | Debian 12 | 2 / 2 GB |
-| zt-sensor | Security | Suricata + NFStream | mgmt `10.10.99.12` | Debian 12 | 2 / 2 GB |
+| zt-sensor | Security | Suricata + NFStream + AI inference | mgmt `10.10.99.12`, mirror `10.10.98.12` | Debian 12 | 2 / 3 GB |
 | siem | Security | Wazuh | mgmt `10.10.99.20` | Ubuntu 22.04 | 4 / 6 GB |
-| host | Security | AI engine (GPU) | mgmt `10.10.99.2` | — | RTX 5050 |
 | web-proxy | Data | Nginx mTLS proxy | dmz `10.10.10.10` | Debian 12 | 1 / 1 GB |
 | web-app | Data | App / API | app `10.10.20.10` | Debian 12 | 1 / 1 GB |
 | db | Data | PostgreSQL | data `10.10.30.10` | Debian 12 | 1 / 1 GB |
-| client-lin | Untrusted | Legit/compromised client & Red Team runner | untrust `192.168.100.11` | Ubuntu 22.04 | 2 / 2 GB |
-| kali | Untrusted | Red Team attacker (optional external node) | untrust (cabled) | Kali 2026.2 | — |
+| client-lin | Untrusted | User workstation + scenario test machine | untrust `192.168.100.11` | Ubuntu 22.04 | 2 / 2 GB |
 
-**Total VM footprint:** ≈ 18 GB RAM for the 10 lab VMs (AI offloaded to the host).
+**Total VM footprint:** ≈ 18 GB RAM for the 10 lab VMs (root-ca stays powered off).

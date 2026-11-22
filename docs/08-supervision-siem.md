@@ -2,165 +2,141 @@
 
 ## 1. Objectifs
 
-- Voir **tout** ce qui se passe : réseau, VPN, décisions Zero Trust, IA, applications.
-- Corréler des événements de sources différentes.
-- Fournir tableaux de bord, alertes et preuves pour l'évaluation.
+- Centraliser ce qui se passe sur le réseau, le VPN, le PDP, le moteur IA et le reverse proxy.
+- Corréler des événements de sources différentes (signature IDS + anomalie IA).
+- Détecter la modification des fichiers sensibles (pare-feu, VPN, PKI, politiques, modèles).
+- Fournir des vues de recherche et un tableau de bord pour les preuves de l'évaluation.
 
 ## 2. Sources de données
 
-| Source | Contenu | Chemin / méthode |
+| Source | Contenu | Hôte / chemin |
 |---|---|---|
-| Suricata | Alertes, flux, DNS, TLS (`eve.json`) | `/var/log/suricata/eve.json` |
-| OpenVPN | Connexions, échecs, déconnexions | `/var/log/openvpn/openvpn.log` |
-| nftables | Paquets rejetés (`ZT-DROP`, `ZT-QUAR`) | `journald` / `/var/log/kern.log` |
-| PDP | Décisions, rescoring (JSON) | stdout → fichier → agent Wazuh |
-| Moteur IA | Scores, top features | JSON |
-| Nginx | Accès, erreurs, CN client | `/var/log/nginx/*.log` |
-| PKI | Émissions, révocations | `index.txt`, logs scripts |
-| Système | auth, auditd, FIM | agent Wazuh |
+| Suricata | Alertes, flux, DNS, TLS (`eve.json`) | `zt-sensor` — `/var/log/suricata/eve.json` |
+| OpenVPN | Connexions, échecs, déconnexions | `zt-gw` — `/var/log/openvpn/openvpn.log` |
+| nftables | Paquets rejetés (`ZT-DROP`, `ZT-QUAR`) | `zt-gw` — `/var/log/kern.log` (rsyslog) |
+| PDP | Décisions, rescoring, refus (JSON) | `zt-pdp` — `/var/log/zt-pdp/audit.jsonl` |
+| Moteur IA | Scores par flux, alertes critiques (JSON) | `zt-sensor` — `/var/log/zt-ai/events.jsonl` |
+| Nginx | Accès, erreurs du reverse proxy mTLS | `web-proxy` — `/var/log/nginx/zt-proxy.{access,error}.log` |
+| PKI | Intégrité de la base de la CA | `sub-ca` — FIM sur `index.txt` et `certs/` |
 
 ## 3. Sonde réseau
 
 ### 3.1 Placement
-Toute communication inter-zones passe par la gateway ; la sonde reçoit une **copie** du trafic.
+Tout le trafic inter-zones passe par `zt-gw`. VirtualBox n'offrant pas de port mirroring, la gateway copie elle-même le trafic avec `tc mirred` : `sensor/mirror.sh`, installé en `/usr/local/sbin/zt-mirror.sh` et lancé par l'unité `zt-mirror`, recopie l'entrée et la sortie des interfaces dmz, app, data et mgmt vers l'interface `zt-mirror` (10.10.98.1). Les interfaces sont résolues par adresse IP au provisioning et écrites dans `/etc/default/zt-mirror` :
 
-```bash
-# Exemple de miroir tc sur la gateway (eth1..eth4 -> eth5 vers la sonde)
-for IF in eth1 eth2 eth3 eth4; do
-  # trafic entrant
-  tc qdisc add dev $IF ingress
-  tc filter add dev $IF parent ffff: protocol all u32 match u8 0 0 \
-     action mirred egress mirror dev eth5
-  # trafic sortant
-  tc qdisc add dev $IF root handle 1: prio
-  tc filter add dev $IF parent 1: protocol all u32 match u8 0 0 \
-     action mirred egress mirror dev eth5
-done
 ```
-> Sous Proxmox/VMware/OVS, le **port mirroring de l'hyperviseur** est plus propre. Option simple : exécuter NFStream directement sur `tun0` de la gateway pour le trafic VPN.
+SRC_IFACES="enp0s9 enp0s10 enp0s16 enp0s17"   # 10.10.10.1 10.10.20.1 10.10.30.1 10.10.99.1
+MIRROR_IF=enp0s18                              # 10.10.98.1
+```
+(les noms `enp0s*` dépendent de la VM ; seules les adresses sont fixes.)
 
-### 3.2 Configuration Suricata (`/etc/suricata/suricata.yaml`, extraits)
+`zt-sensor` reçoit cette copie sur son interface 10.10.98.12 en mode promiscuous ; Suricata et le service `zt-ai` (docs/07) y écoutent tous les deux.
+
+### 3.2 Configuration Suricata
+Le rôle Ansible `sensor` installe Suricata 7 (bookworm-backports) et `suricata-update` (règles Emerging Threats Open), puis :
+
+- remplace `HOME_NET` dans `/etc/suricata/suricata.yaml` par `[10.8.0.0/24,10.10.0.0/16,192.168.100.0/24]` ;
+- génère `/etc/suricata/zt.yaml`, inclus depuis `suricata.yaml` :
+
 ```yaml
 af-packet:
-  - interface: eth1
+  - interface: <interface de 10.10.98.12>
     cluster-id: 99
     cluster-type: cluster_flow
     defrag: yes
-outputs:
-  - eve-log:
-      enabled: yes
-      filetype: regular
-      filename: eve.json
-      types: [alert, flow, dns, tls, http, anomaly]
+default-rule-path: /var/lib/suricata/rules
+rule-files:
+  - suricata.rules
+  - local.rules
 ```
-```bash
-sudo suricata-update                      # règles Emerging Threats Open
-sudo suricata -T -c /etc/suricata/suricata.yaml
-sudo systemctl enable --now suricata
-```
+- valide la configuration (`suricata -T`) et active le service.
 
-### 3.3 Règles locales (`/var/lib/suricata/rules/local.rules`)
-```
-alert tcp $HOME_NET any -> $HOME_NET any (msg:"ZT Horizontal scan interne"; flags:S; \
-  threshold:type both, track by_src, count 50, seconds 10; sid:9000001; rev:1;)
-alert tcp any any -> 10.10.20.10 22 (msg:"ZT SSH brute force"; flow:to_server; flags:S; \
-  threshold:type both, track by_src, count 10, seconds 30; sid:9000002; rev:1;)
-alert udp any any -> any 53 (msg:"ZT DNS long query (tunnel?)"; dns.query; \
-  content:"."; pcre:"/^.{60,}$/"; sid:9000003; rev:1;)
-```
+### 3.3 Règles locales (`sensor/local.rules` → `/var/lib/suricata/rules/local.rules`)
+
+| SID | Détection |
+|---|---|
+| 9000001 | Rafale de SYN depuis une même source (≥ 50 en 10 s) : scan |
+| 9000002 | ≥ 10 connexions en 30 s vers SSH de `web-app` (10.10.20.10:22) |
+| 9000003 | Requête DNS de 60 caractères ou plus |
+| 9000004 | Client VPN (10.8.0.0/24) vers la zone mgmt hors port 8443 (canal de posture) |
+| 9000099 | Auto-test du pipeline : marqueur `zt-ids-selftest` dans une URL proxy → app |
+
+La règle 9000099 sert à vérifier la chaîne miroir → Suricata → `eve.json` → Wazuh de bout en bout.
 
 ## 4. SIEM Wazuh
 
 ### 4.1 Installation (all-in-one)
-```bash
-curl -sO https://packages.wazuh.com/4.x/wazuh-install.sh
-sudo bash wazuh-install.sh -a
-```
-Agents installés sur : `zt-gw`, `zt-pdp`, `zt-sensor`, `zt-ai`, `sub-ca`, `web-proxy`, `web-app`, `db`.
+Le rôle `siem` installe Wazuh 4.14.8 all-in-one sur `siem` (10.10.99.20) avec le script officiel `wazuh-install.sh -a`, relève la limite de champs du décodeur JSON (`analysisd.decoder_order_size=1024`, sinon les événements `eve.json` de Suricata sont rejetés), déploie les règles ZT et importe les tableaux de bord.
 
-### 4.2 Collecte de fichiers (`ossec.conf` de l'agent)
+Agents (rôle `wazuh_agent`, même version que le manager) : `zt-gw`, `zt-pdp`, `zt-sensor`, `sub-ca`, `web-proxy`.
+
+### 4.2 Collecte de fichiers et FIM
+Les sources et les chemins surveillés sont définis par groupe d'inventaire dans `infra/ansible/roles/wazuh_agent/defaults/main.yml` ; le rôle en génère un bloc `<ossec_config>` dans `/var/ossec/etc/ossec.conf` de chaque agent. Le FIM est en temps réel avec `report_changes` :
+
+| Hôte | Chemins surveillés |
+|---|---|
+| `zt-gw` | `/etc/openvpn`, `/etc/nftables.conf`, `/etc/nftables.d` |
+| `zt-pdp` | `/opt/zt-pdp/app/policies` |
+| `zt-sensor` | `/opt/zt-ai/models`, `/etc/suricata` |
+| `sub-ca` | `/home/vagrant/pki/sub/index.txt`, `/home/vagrant/pki/sub/certs` |
+| `web-proxy` | `/etc/nginx` |
+
+### 4.3 Règles personnalisées (`siem/rules/zt_rules.xml` → `/var/ossec/etc/rules/zt_rules.xml`)
+
+| ID | Niveau | Condition |
+|---|---|---|
+| 100100 | 3 | Tout événement JSON `component=pdp` |
+| 100101 | 8 | `rescore` vers le palier `restricted` |
+| 100102 | 12 | `rescore` vers `quarantine` |
+| 100103 | 14 | `rescore` vers `revoke` |
+| 100104 | 10 | `authenticate` / `session_open` refusé |
+| 100105 | 12 | Appel non autorisé au PDP (`caller_denied`, `posture_denied`) |
+| 100106 | 12 | `certificate_revoke` par le PDP |
+| 100107 | 10 | Échec du plan de contrôle (`enforcement_error`, `policy_error`, `ttl_renewal_error`) |
+| 100120 | 3 | Tout événement `component=ai` |
+| 100121 | 7 | Rapport d'anomalie non critique |
+| 100122 | 13 | Rapport critique (rafale de flux d'attaque) |
+| 100140 | 12 | Alerte Suricata d'une règle locale (SID 900000x) |
+| 100150 | 15 | Alerte Suricata puis alerte IA critique en moins de 120 s : identité probablement compromise |
+| 100160 | 13 | FIM : modification sous `/etc/nftables` |
+| 100161 | 12 | FIM : modification sous `/etc/openvpn` ou de la PKI |
+
+Extrait (corrélation IDS + IA) :
+
 ```xml
-<localfile><log_format>json</log_format><location>/var/log/suricata/eve.json</location></localfile>
-<localfile><log_format>json</log_format><location>/var/log/zt/pdp-audit.json</location></localfile>
-<localfile><log_format>json</log_format><location>/var/log/zt/ai-events.json</location></localfile>
-<localfile><log_format>syslog</log_format><location>/var/log/openvpn/openvpn.log</location></localfile>
-<syscheck><directories check_all="yes" realtime="yes">/etc/openvpn,/pki,/etc/nftables.conf</directories></syscheck>
-```
-Le FIM (*File Integrity Monitoring*) alerte si la config VPN, la PKI ou le pare-feu est modifiée.
-
-### 4.3 Règles de corrélation personnalisées (`/var/ossec/etc/rules/zt_rules.xml`)
-> À adapter aux noms de champs réels après décodage.
-
-```xml
-<group name="zerotrust,">
-
-  <rule id="100100" level="8">
-    <decoded_as>json</decoded_as>
-    <field name="event">rescore</field>
-    <field name="tier">restricted</field>
-    <description>ZT: privilèges réduits pour $(cn) (score $(score))</description>
-  </rule>
-
-  <rule id="100101" level="12">
-    <decoded_as>json</decoded_as>
-    <field name="event">rescore</field>
-    <field name="tier">quarantine</field>
-    <description>ZT: session en QUARANTAINE pour $(cn)</description>
-    <mitre><id>T1078</id></mitre>
-  </rule>
-
-  <rule id="100102" level="14">
-    <decoded_as>json</decoded_as>
-    <field name="event">rescore</field>
-    <field name="tier">revoke</field>
-    <description>ZT: certificat REVOQUE pour $(cn)</description>
-  </rule>
-
-  <!-- Corrélation : connexion VPN suivie de scan interne par la même identité -->
-  <rule id="100110" level="13" frequency="2" timeframe="120">
-    <if_matched_sid>100100</if_matched_sid>
-    <if_sid>86601</if_sid>   <!-- alerte Suricata (à ajuster) -->
-    <description>ZT: identité compromise probable (anomalie IA + signature IDS)</description>
-  </rule>
-
-</group>
+<rule id="100150" level="15" frequency="2" timeframe="120">
+  <if_matched_sid>86601</if_matched_sid>
+  <if_sid>100122</if_sid>
+  <description>ZT: probable compromised identity — IDS signature AND AI critical anomaly</description>
+</rule>
 ```
 
-### 4.4 Réponse active (optionnel)
-Un script Wazuh *active response* appelle le PDP :
-```bash
-#!/bin/bash
-# /var/ossec/active-response/bin/zt-quarantine.sh
-read -r INPUT
-CN=$(echo "$INPUT" | jq -r '.parameters.alert.data.cn')
-curl -s --cert /etc/wazuh/zt.crt --key /etc/wazuh/zt.key \
-  -X POST "https://10.10.99.10:8443/v1/events" \
-  -H "Content-Type: application/json" \
-  -d "{\"cn\":\"$CN\",\"anomaly\":1.0,\"source\":\"wazuh-ar\"}"
-```
+Wazuh ne déclenche aucune action : la réponse automatique passe uniquement par le moteur IA et le PDP (docs/06, docs/07).
 
 ## 5. Tableaux de bord
 
-| Dashboard | Panneaux |
+Les objets sont versionnés dans `siem/dashboards/zt-dashboards.ndjson` et importés par `siem/dashboards/import.sh` (appelé par le rôle `siem`) : un tableau de bord « ZT-PKI-AI - Zero Trust overview » et cinq recherches enregistrées sur `wazuh-alerts-*`.
+
+| Recherche | Requête |
 |---|---|
-| **Vue Zero Trust** | Sessions actives, scores par identité, répartition des paliers, refus d'accès |
-| **PKI** | Certificats émis / expirant / révoqués, échecs de validation |
-| **Réseau** | Top talkers, flux bloqués `ZT-DROP`, alertes Suricata par signature |
-| **IA** | Score d'anomalie dans le temps, top features, taux de faux positifs |
-| **Incident** | Chronologie : alerte → score → quarantaine → révocation |
+| ZT - Incident timeline | règles 100102, 100103, 100105, 100107, 100122, 100150, 100160 |
+| ZT - PDP decisions | `data.component:pdp` |
+| ZT - PKI (revocations, CA files) | règles 100106, 100161 et agent `sub-ca` |
+| ZT - Network: IDS and firewall | règles 86601, 100140, 100160 |
+| ZT - AI engine | `data.component:ai` |
 
 ## 6. Exigences de journalisation
 
-- Format **JSON**, horodatage ISO-8601 UTC, champ `cn`, `src_ip`, `decision`, `reason`.
-- **Synchronisation NTP** obligatoire.
-- Pas de secrets ni de clés dans les logs.
-- Rétention minimale : 30 jours (lab), logs intégrité protégés (envoi temps réel).
+- PDP et moteur IA écrivent une ligne JSON par événement avec `ts` (epoch en secondes), `component`, `event` et les champs utiles (`cn`, `tier`, `score`, `decision`, `reason`, `anomaly`…).
+- Horloges synchronisées par chrony sur `zt-gw` (10.10.99.1).
+- Aucun secret ni clé dans les journaux.
 
 ## 7. Tests supervision
 
-| Test | Attendu |
+| Test | Résultat |
 |---|---|
-| `nmap` interne | Alerte Suricata + règle 100110 |
-| Révocation d'un cert | Événement `revoke` dans Wazuh < 5 s |
-| Modification `server.conf` | Alerte FIM |
-| Arrêt de l'agent | Alerte « agent disconnected » |
+| Modification de `/etc/nftables.conf` (S11) | Alerte FIM règle 100160 avec anciennes et nouvelles empreintes |
+| Modification sous `/etc/openvpn` | Alerte FIM règle 100161 |
+| Requête contenant `zt-ids-selftest` | Alerte Suricata 9000099 reçue dans Wazuh (règle 86601) |
+| Appel au PDP depuis un tunnel client (10.8.0.10) | Règle 100105 |
+| Événement `rescore` vers `revoke` (via `wazuh-logtest`) | Règle 100103 |

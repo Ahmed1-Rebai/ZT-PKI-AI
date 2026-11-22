@@ -3,15 +3,16 @@
 #
 # Networks (VirtualBox Internal Networks, no host/Internet route):
 #   zt-untrust 192.168.100.0/24 | zt-dmz 10.10.10.0/24 | zt-app 10.10.20.0/24
-#   zt-data 10.10.30.0/24       | zt-mgmt 10.10.99.0/24
+#   zt-data 10.10.30.0/24       | zt-mirror 10.10.98.0/24
+#   zt-mgmt 10.10.99.0/24 is host-only (see below), not an internal network.
 #
 # NOTE: eth0 is Vagrant's NAT, used ONLY to download the box and run apt during
 # provisioning. For isolation during attack tests, detach it afterwards:
 #   VBoxManage modifyvm <vm> --nic1 null     (or `vagrant halt` and toggle in GUI)
 #
-# Bring up a subset per milestone, e.g.:
-#   vagrant up sub-ca zt-gw zt-pdp            # M2/M3 core
-#   vagrant up zt-sensor zt-ai siem           # M4/M6 detection
+# Bring up stage by stage (or `make core detection workloads client`):
+#   vagrant up sub-ca zt-gw zt-pdp            # core
+#   vagrant up zt-sensor siem                 # detection (Suricata + AI inference)
 #
 # Each VM gets its role played by Ansible (see ansible/site.yml).
 
@@ -35,9 +36,9 @@ NODES = {
   "zt-sensor" => { box: BOX_DEB, cpus: 2, mem: 3072, nets: [["zt-mgmt","10.10.99.12"],
                                                             ["zt-mirror","10.10.98.12"]],   group: "sensor",
                    promisc: [3] },
-  # NOTE: no zt-ai VM. The AI engine runs on the HOST to use the RTX 5050 GPU
-  # (VirtualBox has no CUDA passthrough). The host sits on the mgmt network at
-  # 10.10.99.2 — see README "AI on the host".
+  # No separate AI VM: AI inference runs on zt-sensor (systemd service zt-ai).
+  # Models are trained on the host's GPU (VirtualBox has no CUDA passthrough)
+  # and deployed to the sensor.
   "siem"      => { box: BOX_UBU, cpus: 4, mem: 6144, nets: [["zt-mgmt","10.10.99.20"]],     group: "siem" },
   "web-proxy" => { box: BOX_DEB, cpus: 1, mem: 1024, nets: [["zt-dmz","10.10.10.10"]],      group: "proxy" },
   "web-app"   => { box: BOX_DEB, cpus: 1, mem: 1024, nets: [["zt-app","10.10.20.10"]],      group: "webapp" },
@@ -63,9 +64,9 @@ Vagrant.configure("2") do |config|
 
       o[:nets].each do |intnet, ip|
         if intnet == "zt-mgmt"
-          # Host-only (not internal): the HOST joins this network as the AI node
-          # (10.10.99.2) so it can reach the PDP (:8443) and the sensor. Still no
-          # Internet route. Set the host adapter IP once with `make mgmt-host`.
+          # Host-only (not internal): the host joins this network at 10.10.99.2
+          # as the admin station (Wazuh dashboard); it is not a lab node. Still
+          # no Internet route. Set the host adapter IP once with `make mgmt-host`.
           node.vm.network "private_network", ip: ip
         else
           # Internal network: fully isolated, VM-to-VM only.

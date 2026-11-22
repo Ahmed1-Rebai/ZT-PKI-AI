@@ -4,7 +4,7 @@
 # check re-issues alice's certificate afterwards.
 #
 #   usage: vpn/scripts/verify.sh            (safe checks only)
-#          vpn/scripts/verify.sh --full     (also S3 revoked + S14 fail-closed)
+#          vpn/scripts/verify.sh --full     (also S3 revoked + S10 fail-closed)
 #
 # Preconditions: `make vpn` has run; sub-ca / zt-gw / client-lin are up and
 # provisioned. Run from the repo root or via `make -C infra vpn-check`.
@@ -80,7 +80,7 @@ if [ "$FULL" = "--full" ]; then
   ( cd "$INFRA" && vagrant provision zt-gw >/dev/null 2>&1 && vagrant provision client-lin >/dev/null 2>&1 )
   echo "  (alice re-issued and redeployed)"
 
-  echo "== [6] S14 — PDP down => fail-closed =="
+  echo "== [6] S10 — PDP down => fail-closed =="
   gssh zt-pdp "sudo docker stop zt-pdp-pdp-1" >/dev/null 2>&1
   gssh client-lin 'sudo pkill -x openvpn 2>/dev/null; sleep 1; sudo openvpn --config /etc/openvpn/client/alice.conf --daemon ztcheck3'
   sleep 8

@@ -1,15 +1,15 @@
-TUN/TAP device tun0 opened
-net_iface_mtu_set: mtu 1500 for tun0
-net_iface_up: set tun0 up
-net_addr_v4_add: 10.8.0.1/24 dev tun0
-Could not determine IPv4/IPv6 protocol. Using AF_INET
-Socket Buffers: R=[212992->212992] S=[212992->212992]
-UDPv4 link local (bound): [AF_INET][undef]:1194
-UDPv4 link remote: [AF_UNSPEC]
-UID set to nobody
-GID set to nogroup
-Capabilities retained: CAP_NET_ADMIN
-MULTI: multi_init called, r=256 v=256
-IFCONFIG POOL IPv4: base=10.8.0.2 size=253
-IFCONFIG POOL LIST
-Initialization Sequence Completed
+ZT-HOOK {"cn": "alice@lab.local", "decision": "allow", "event": "tls-verify", "mode": "pdp", "score": 96.8, "serial": "8216", "src_ip": "192.168.100.11", "src_port": "50674"}
+alice@lab.local/192.168.100.11:50674 VERIFY SCRIPT OK: depth=0, C=TN, O=ZT-Lab, CN=alice@lab.local
+alice@lab.local/192.168.100.11:50674 VERIFY OK: depth=0, C=TN, O=ZT-Lab, CN=alice@lab.local
+alice@lab.local/192.168.100.11:50674 peer info: IV_VER=2.5.11
+alice@lab.local/192.168.100.11:50674 peer info: IV_PLAT=linux
+alice@lab.local/192.168.100.11:50674 peer info: IV_PROTO=6
+alice@lab.local/192.168.100.11:50674 peer info: IV_CIPHERS=AES-256-GCM:CHACHA20-POLY1305
+alice@lab.local/192.168.100.11:50674 peer info: IV_LZ4=1
+alice@lab.local/192.168.100.11:50674 peer info: IV_LZ4v2=1
+alice@lab.local/192.168.100.11:50674 peer info: IV_LZO=1
+alice@lab.local/192.168.100.11:50674 peer info: IV_COMP_STUB=1
+alice@lab.local/192.168.100.11:50674 peer info: IV_COMP_STUBv2=1
+alice@lab.local/192.168.100.11:50674 peer info: IV_TCPNL=1
+alice@lab.local/192.168.100.11:50674 Control Channel: TLSv1.3, cipher TLSv1.3 TLS_AES_256_GCM_SHA384, peer certificate: 256 bits ECprime256v1, signature: ecdsa-with-SHA256, peer temporary key: 253 bits X25519
+read UDPv4 [ECONNREFUSED]: Connection refused (fd=7,code=111)

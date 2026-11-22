@@ -1,14 +1,17 @@
 # ai/
 
-Anomaly-detection engine (docs/07), milestone **M4**. Runs on the **host** (RTX 5050)
-— VirtualBox has no CUDA passthrough; the host sits on mgmt at `10.10.99.2`.
+Anomaly-detection engine (docs/07), milestones **M4** and **M5**. Training runs on the
+**host** GPU (RTX 5050; VirtualBox has no CUDA passthrough). Inference runs on **zt-sensor**:
+the `sensor` Ansible role deploys the code, the models with their SHA-256 manifest and the
+mTLS identity to `/opt/zt-ai` and starts the `zt-ai` service (CPU only). The models only
+see flow statistics, never packet payload.
 
 ```
 ai/
 ├── schema.py          # 47 canonical flow features — CICFlowMeter AND NFStream map onto them
 ├── data.py            # CIC-IDS2017 loader: clean labels, families, dedupe, stratified split
 ├── models.py          # preprocessing (log1p+std), GPU autoencoder, docs/07 §6 normalisations
-├── train.py           # train + evaluate (E1), SHAP, latency, signed manifest
+├── train.py           # train + evaluate (E1), global SHAP ranking, latency, SHA-256 manifest
 ├── registry.py        # load models ONLY if SHA-256 matches the manifest
 ├── scoring.py         # offline/online scorer turning 47 features into calibrated anomaly probability
 ├── pdp_client.py      # mTLS client reporting anomaly events to PDP (/v1/events)
@@ -41,4 +44,5 @@ The official UNB link now requires registration; the Hugging Face mirror
 ## Results (E1, CIC-IDS2017 test split) — details in [reports/metrics.md](reports/metrics.md)
 
 Served model (stacking fusion): **F1 0.9943 · FPR 0.16 % · ROC-AUC 0.9999 · 11.6 ms/flow**.
-All M4 targets met. CIC-IDS2017 is optimistic; the decisive test is **E2** on lab traffic.
+All M4 targets met. CIC-IDS2017 is optimistic: these numbers say nothing about lab traffic,
+which was not evaluated. Bot remains the weakest family (~74 % detected).

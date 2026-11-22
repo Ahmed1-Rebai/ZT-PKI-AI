@@ -6,7 +6,9 @@ OpenSSL configuration and scripts for the two-level PKI (see [docs/04](../docs/0
 pki/
 ├── root/           # Root CA (offline VM): root.cnf, private/, certs/, newcerts/, index.txt, serial, crlnumber
 ├── sub/            # Issuing CA: sub.cnf, private/, certs/, csr/, crl/, index.txt, serial, crlnumber
-└── scripts/        # issue-client.sh, revoke.sh, gencrl.sh, renew.sh
+├── scripts/        # init-root, init-sub, sign-sub, issue-server, issue-client, revoke,
+│                   # gencrl, renew, ocsp, refresh-crl (all .sh)
+└── systemd/        # zt-crl.service (CRL over HTTP :80), zt-ocsp.service (OCSP :2560)
 ```
 
 > Private keys (`*.key`), PEM material and `inventory.csv` are **never committed** (see repo `.gitignore`).
@@ -22,7 +24,14 @@ pki/
 | `issue-server.sh <CN> <SANs> [ext] [days]` | sub-ca | Server cert; `ext`=`server_cert` or `server_client_cert` (mTLS services) |
 | `issue-client.sh <user> [days] [dev]` | sub-ca | Short-lived user cert (`clientAuth`) + inventory row |
 | `revoke.sh <cert> [reason]` | sub-ca | Revoke + regenerate CRL |
-| `gencrl.sh` | sub-ca | (Re)generate the CRL (cron hourly + on revocation) |
+| `gencrl.sh` | sub-ca | (Re)generate the CRL (24 h validity) and copy it to the HTTP publish dir; called by `revoke.sh` |
+| `renew.sh <cert> [days]` | sub-ca | Re-issue a leaf with the same key and CN; profile picked from the EKU |
+| `ocsp.sh` | sub-ca | Create the OCSP signer if missing, run the OCSP responder on :2560 (foreground) |
+| `refresh-crl.sh` | host | Regenerate the CRL on sub-ca and deploy it to zt-gw and web-proxy (manual, before a demo/test session; no cron) |
+
+The units in `systemd/` are installed by hand on sub-ca: `zt-crl.service` serves
+`/home/vagrant/crlpub` on port 80 (`http://10.10.99.5/crl/sub.crl`), `zt-ocsp.service`
+runs the OCSP responder (restart it after a revocation: it reads `index.txt` at start-up).
 
 All scripts resolve the PKI base as the repo root, or honor `PKI_BASE=<dir>`.
 Validated end-to-end on the host (chain verify + revocation via CRL).

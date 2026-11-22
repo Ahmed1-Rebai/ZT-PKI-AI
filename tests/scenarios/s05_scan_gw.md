@@ -5,7 +5,6 @@
 | Field | Value |
 |---|---|
 | **ID / Title** | S5 — UDP/TCP scan of the gateway |
-| **Owner** | Red Team |
 | **Objective** | Verify the Zero Trust control: *tls-crypt + default drop* |
 | **Tool / method** | `nmap -sU -sS 192.168.100.1` |
 | **MITRE ATT&CK** | T1046 |
